@@ -40,7 +40,7 @@ silhouette — but it is no longer load-bearing.
 
 | Device | What it does |
 | --- | --- |
-| **Lane ribbon** | Three pips across the top, welded to the lanes below. Jade = clear, amber = a boulder is committing (1.2s telegraph), red = claimed and grinding. The only pure-UI element in the game, and the one you actually play off. |
+| **The camera** | Since the overhead diagonal, every lane and every block holding one is on screen. This row used to be a three-pip lane ribbon; it was confirming what the player could already see, so it is gone and the HUD is two bars instead. |
 | **Shadows arriving first** | The key light sits behind the runner, so each boulder throws a long shadow *past* him onto the slabs ahead. Shadow width reads as distance. |
 | **Dust at the frame edge** | A bottom vignette of ochre grit, tinted red and tightened as the nearest claiming boulder closes. Peripheral, never blocking. |
 | **The shoulder glance** | Not built, and the overhead diagonal may have made it unnecessary — the geography is permanently on screen now. |
@@ -49,7 +49,8 @@ silhouette — but it is no longer load-bearing.
 
 | Parameter | Value | Why |
 | --- | --- | --- |
-| Health pool | 100 HP, 6 visible segments | Players count hits, not pixels |
+| Health pool | 100 HP, one long bar with quarter marks | Countable without chopping the bar into segments |
+| Level | one per 500m | The jade meter under the health bar. Levels arrive faster as speed ramps: 43s, 39s, 35s, 33s, 29s… |
 | Grind drain | 18 HP/s (ramps 12 → 24 over 3s in-lane) | Lingering punished harder than clipping |
 | Contested drain | 6 HP/s | The telegraph has teeth |
 | Vermin hit | −12 HP + 0.6s stumble | Cost is positional, not just numeric |

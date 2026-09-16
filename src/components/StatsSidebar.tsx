@@ -12,9 +12,13 @@ export function StatsSidebar({ state }: { state: GameState }) {
         <span className="stat__label">Best</span>
         <span className="stat__value stat__value--best">{state.best.toLocaleString()}</span>
       </div>
+      <div className="stats__section">
+        <span className="stat__label">Level</span>
+        <span className="stat__value">{state.level}</span>
+      </div>
       <div className="stats__note">
-        <h3>Lane ribbon</h3>
-        <p>Three pips, three lanes. Red means a boulder has claimed that lane and is grinding you down.</p>
+        <h3>Levels</h3>
+        <p>The thin jade bar fills over 500m. Every time it does, the level steps up and the causeway keeps getting faster.</p>
       </div>
       <div className="stats__note">
         <h3>Risk pays</h3>

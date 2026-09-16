@@ -12,8 +12,12 @@ export interface GameState {
   hp: number
   /** Live payout multiplier — 3 while grinding, 2 while contested, else 1. */
   multiplier: number
-  /** Per-lane threat: 0 clear, 1 committing, 2 claimed and grinding. */
-  lanes: [number, number, number]
+  /** Levels advance every 500m. */
+  level: number
+  /** Progress through the current level, 0–1. */
+  levelProgress: number
+  /** Metres still to run before the next level. */
+  toNextLevel: number
   /** True while a boulder is in the runner's own lane, draining him. */
   grinding: boolean
 }

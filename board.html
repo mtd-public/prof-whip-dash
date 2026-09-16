@@ -42,10 +42,10 @@
             <div class="grit"></div>
             <div class="hud">
               <div class="hud__top">
-                <div class="ribbon"><i class="pip hot"></i><i class="pip warn"></i><i class="pip"></i></div>
-                <div class="hp"><i></i><i></i><i></i><i class="spent"></i><i class="spent"></i><i class="spent"></i></div>
+                <div class="hp"><i style="width: 46%"></i><u style="left: 25%"></u><u style="left: 50%"></u><u style="left: 75%"></u></div>
+                <div class="lvl"><div class="lvl__bar"><i style="width: 24%"></i></div><span>Lv 2</span></div>
                 <div class="readout">
-                  <span><b>1,240</b> coins</span><span class="mult">×3 danger</span><span><b>620</b> m</span>
+                  <span><b>1,240</b> coins</span><span class="mult">×3 danger</span><span><b>380</b> m to Lv 3</span>
                 </div>
               </div>
               <div class="toast">IDOL +75</div>
@@ -67,11 +67,12 @@
         <ol class="beats">
           <li>
             <div>
-              <h3>The lane ribbon</h3>
+              <h3>The camera does it</h3>
               <p>
-                Three pips across the top, welded to the lanes below them. Jade = clear, amber = a boulder is committing
-                (1.2s telegraph), red = claimed and grinding. The only pure-UI element in the game, and the one you
-                actually play off.
+                This was a three-pip lane ribbon back when the camera sat behind the runner and the blocks lived outside
+                the frame. The overhead diagonal keeps every lane and every boulder on screen, so the ribbon was
+                confirming what the player could already see — it is gone, and the two bars it shared space with grew
+                into its place.
               </p>
             </div>
           </li>
@@ -322,7 +323,7 @@
           </ol>
           <dl class="spec">
             <div><dt>Safe area<small>HUD clears the notch and the home indicator with env() insets in both orientations.</small></dt><dd>env()</dd></div>
-            <div><dt>Top HUD height<small>Ribbon, health, coins and distance. Everything else is in the world.</small></dt><dd>64 px</dd></div>
+            <div><dt>Top HUD<small>One long health bar, a thin level meter filling every 500m, then the counters. Everything else is in the world.</small></dt><dd>3 rows</dd></div>
             <div><dt>HUD refresh<small>The sim runs at 60fps; React re-renders the HUD 12 times a second.</small></dt><dd>12 Hz</dd></div>
             <div><dt>First session<small>Boulders hold back for the first 3s and claim one lane at a time until 260m.</small></dt><dd>soft start</dd></div>
           </dl>
