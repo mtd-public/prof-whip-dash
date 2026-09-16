@@ -204,9 +204,14 @@ export class Scene3D {
       const z = data ? data.z : i === 0 ? TUNING.grindZ + 1.2 : TUNING.idleZ
       // While rolling away it is moving fast down its lane, so track it
       // exactly instead of easing — the lag would read as sliding.
-      if (data && data.despawning > 0) b.position.z = z
-      else b.position.z += (z - b.position.z) * Math.min(1, dt * 12)
-      b.position.x += (LANE_X[i] - b.position.x) * Math.min(1, dt * 3)
+      const x = LANE_X[i] + (data ? data.offsetX : 0)
+      if (data && data.despawning > 0) {
+        b.position.z = z
+        b.position.x = x
+      } else {
+        b.position.z += (z - b.position.z) * Math.min(1, dt * 12)
+        b.position.x += (x - b.position.x) * Math.min(1, dt * 3)
+      }
       b.position.y = 1.25 + Math.sin(t * 9 + i) * 0.04
       b.scale.setScalar(1.12)
 

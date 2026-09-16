@@ -17,9 +17,9 @@ Live art bible (every model rendered from three.js primitives in the browser):
    always clear — the game is finding it, not reacting to a coin flip.
 3. Sharing a lane with a claiming boulder does not kill you, it **grinds**:
    a continuous HP drain that only stops when you reach a clear lane. No
-   boulder holds a lane for more than **5 seconds** — then it loses the chase,
-   rolls back down its own lane and out of frame past the camera, and that
-   lane cools down for 1.5s before it can be claimed again.
+   boulder holds a lane for more than **5 seconds** — then it breaks away,
+   overtakes the runner and rolls off down the causeway ahead of him, and that
+   lane cools down for 2s before it can be claimed again.
 4. Spiders and scarabs sit in front of you. Tap to crack the whip; it reaches
    2–5m ahead **in your own lane only**, so the decision is *when*, not *where*.
 5. A vermin hit costs 12 HP and a 0.6s stumble — and the real price is that
@@ -59,8 +59,9 @@ silhouette — but it is no longer load-bearing.
 | Lane switch | 0.16s | Dodge on reaction; panic-tapping overshoots |
 | Run speed | 11 → 21 m/s, +0.35 per 100m | Boulders hold 1.04× player speed while claiming |
 | Boulder stand-off | 2.4m grinding / 11.5m holding | Holding boulders sit back up the causeway; a claim brings one down onto your heels |
-| Boulder lifetime | 5s, then a 1.1s roll-away | Nothing grinds you forever; the exit is a real roll down the lane, not a fade |
-| Lane cooldown | 1.5s after a despawn | With a guard so all three lanes cooling at once cannot leave you unchased |
+| Boulder lifetime | 5s, then a 1.6s roll-away | Nothing grinds you forever; it accelerates past you and away up the track, never fading in place |
+| Despawn swerve | 2.4m, over a 5m window | It swings wide to overtake rather than rolling through the runner — 0.36m of clearance at the pass |
+| Lane cooldown | 2s after a despawn | Longer than the roll-away, so a lane is never re-claimed while its block is still in flight. A guard stops all three cooling at once |
 | Coin run | 4–8 coins, 2.2m apart, one lane | 70% threaded through the dangerous lane |
 | Coin value | 1 × multiplier | Multiplier is 1 / 2 / 3 by lane state |
 | Jade idol | 25 × multiplier, every 16–26s | Always spawns in the dangerous lane |

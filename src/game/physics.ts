@@ -32,12 +32,20 @@ export const TUNING = {
   telegraph: 1.2,
   /** How long a boulder may hold a lane before it rolls away and despawns. */
   boulderLife: 5,
-  /** Quiet time after a despawn before that lane can be claimed again. */
-  boulderCooldown: 1.5,
+  /** Quiet time after a despawn before that lane can be claimed again.
+   *  Never shorter than despawnTime, or a lane could be re-claimed while
+   *  its block is still rolling away down the track. */
+  boulderCooldown: 2,
   /** Seconds the roll-away takes once its life runs out. */
-  despawnTime: 1.1,
-  /** Where a retreating boulder rolls to — well behind the camera. */
-  despawnZ: 26,
+  despawnTime: 1.6,
+  /** Where a spent boulder rolls to: away down the causeway, far enough
+   *  ahead to be lost in the haze before it is recycled. */
+  despawnZ: -46,
+  /** How far it swerves out of the lane to get around the runner. Needs to
+   *  clear the block's radius plus his shoulders, with room to spare. */
+  despawnSwerve: 2.4,
+  /** Metres either side of the runner over which the swerve opens and closes. */
+  despawnSwerveWindow: 5,
 
   coinValue: 1,
   idolValue: 25,
@@ -54,6 +62,8 @@ export interface Boulder {
   despawning: number
   /** Where the roll-away started, so the easing has something to lerp from. */
   despawnFrom: number
+  /** Sideways offset from the lane centre — the swerve around the runner. */
+  offsetX: number
   /** Seconds until this lane may be claimed again. */
   cooldown: number
 }
@@ -141,9 +151,9 @@ export function createWorld(): World {
     combo: 0,
     multiplier: 1,
     boulders: [
-      { lane: 0, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, cooldown: 0 },
-      { lane: 1, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, cooldown: 0 },
-      { lane: 2, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, cooldown: 0 },
+      { lane: 0, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, offsetX: 0, cooldown: 0 },
+      { lane: 1, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, offsetX: 0, cooldown: 0 },
+      { lane: 2, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, offsetX: 0, cooldown: 0 },
     ],
     critters: [],
     pickups: [],
@@ -281,14 +291,26 @@ export function step(w: World, dt: number) {
     b.cooldown = Math.max(0, b.cooldown - dt)
 
     if (b.despawning > 0) {
-      // It loses the chase and rolls back down its own lane, accelerating
-      // away until it is past the camera — never sideways, never in place.
+      // Its five seconds are up: it breaks away, overtakes the runner and
+      // rolls off down the causeway ahead of him, accelerating the whole way.
       b.despawning += dt
       const k = Math.min(1, b.despawning / TUNING.despawnTime)
       b.z = b.despawnFrom + (TUNING.despawnZ - b.despawnFrom) * k * k
+
+      // It is overtaking in an occupied lane, so it swings wide to get past
+      // the runner rather than straight through him. The swerve peaks as it
+      // draws level and closes again once it is clear.
+      const level = Math.max(0, 1 - Math.abs(b.z) / TUNING.despawnSwerveWindow)
+      const dir = i === 1 ? 1 : -Math.sign(LANE_X[i])
+      const target = w.lane === i ? dir * TUNING.despawnSwerve * level : 0
+      b.offsetX += (target - b.offsetX) * Math.min(1, dt * 14)
+
       if (b.despawning >= TUNING.despawnTime) {
         b.despawning = 0
-        b.z = TUNING.idleZ
+        b.offsetX = 0
+        // Recycle it in behind the camera, not into the middle of the shot:
+        // the idle easing below walks it back up into the queue.
+        b.z = TUNING.idleZ + 14
       }
       return
     }
