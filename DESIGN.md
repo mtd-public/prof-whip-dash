@@ -128,8 +128,19 @@ tone mapping and timing.
 - Lane changes fire the moment a swipe passes 28px rather than on release — at
   20 m/s, waiting for pointerup is a hit — and the origin resets after each
   one, so a long drag crosses two lanes.
-- Swipe ←/→ to change lane (28px threshold, 120ms input buffer). Tap anywhere
-  to crack the whip (0.30s cooldown). Swipe ↓ to slide (reserved).
+- **Two ways to change lane, both answering the same question.** Swipe ←/→
+  (28px threshold, fires on threshold rather than release — at 20 m/s waiting
+  for pointerup is a hit), or tap the left/right half of the board, which moves
+  to that side. The split is measured against the board, not the window, so the
+  pillarboxed landscape layout still divides down the middle of the play area.
+- **The whip has its own button** in portrait: a bar across the bottom of the
+  board, 90dvw wide and 62px tall, centred so either thumb reaches it. It sits
+  below the runner, who rides about two thirds down under the overhead camera.
+  It stops its own pointer events reaching the board, so cracking never costs a
+  lane change — though it does mean the bottom ~9% of the board is whip, not
+  lane. Landscape and desktop keep the footer bar instead. Space works
+  everywhere.
+- Swipe ↓ to slide (reserved).
 - No interactive UI in the bottom 12% — that's where the thumb and the home
   indicator live. Pause is top-right.
 - Haptics carry the grind: a 30ms tick per HP segment lost, escalating.

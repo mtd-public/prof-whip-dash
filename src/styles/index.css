@@ -390,6 +390,61 @@ body {
   background: linear-gradient(0deg, rgba(224, 84, 55, 0.5), rgba(216, 185, 140, 0.14) 45%, transparent 78%);
 }
 
+/* ---------- Whip control (portrait) ----------
+   A bar across the bottom of the board: either thumb reaches it, and it sits
+   below the runner, who rides around two thirds down under the overhead
+   camera. Landscape and desktop hide it — they have the footer bar. */
+.whip-tap {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 6;
+  width: 90vw;
+  width: 90dvw;
+  max-width: calc(100% - 20px);
+  height: 62px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(242, 193, 78, 0.55);
+  background: rgba(24, 34, 31, 0.62);
+  backdrop-filter: blur(4px);
+  color: var(--gold);
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  transition: transform 0.08s ease, background 0.12s ease;
+}
+
+.whip-tap span {
+  font-size: 19px;
+  line-height: 1;
+  transform: rotate(-35deg);
+}
+
+.whip-tap:active:not(:disabled) {
+  transform: translateX(-50%) scale(0.97);
+  background: rgba(242, 193, 78, 0.22);
+}
+
+.whip-tap:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.whip-tap:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
 /* ---------- Overlay ---------- */
 .overlay {
   position: absolute;
@@ -607,6 +662,10 @@ body {
 
   .hud__top {
     padding-top: 12px;
+  }
+
+  .whip-tap {
+    display: none;
   }
 
   .stats {

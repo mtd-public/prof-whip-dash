@@ -9,7 +9,7 @@ import { useBoardControls } from './hooks/useBoardControls'
 export default function App() {
   const { state, world, toast, moveLeft, moveRight, crack, start, togglePause } = useGameEngine()
   const playable = state.phase === 'playing'
-  const controls = useBoardControls({ onLeft: moveLeft, onRight: moveRight, onTap: crack })
+  const controls = useBoardControls({ onLeft: moveLeft, onRight: moveRight })
 
   return (
     <div className="app">
@@ -41,6 +41,25 @@ export default function App() {
           <div className="board-shell__vignette" />
           {state.phase !== 'ready' && <Hud state={state} toast={toast} />}
           <GameOverlay state={state} onStart={start} onResume={togglePause} />
+
+          {/* Portrait's whip control. It sits inside the board, bottom right,
+              clear of the runner and under the thumb. Its own pointer events
+              stay out of the board's tap-to-switch handler. */}
+          <button
+            type="button"
+            className="whip-tap"
+            aria-label="Crack the whip"
+            disabled={!playable}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              crack()
+            }}
+          >
+            <span aria-hidden="true">➤</span>
+            Whip
+          </button>
         </div>
 
         <StatsSidebar state={state} />

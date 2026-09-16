@@ -26,7 +26,7 @@ export function StatsSidebar({ state }: { state: GameState }) {
       </div>
       <div className="stats__note">
         <h3>The whip</h3>
-        <p>Reaches your own lane, 2–5m ahead. Crack a spider at 3m for a perfect and a speed burst.</p>
+        <p>Reaches your own lane, 2–5m ahead. Crack a spider at 3m for a perfect and a speed burst. Space, or the button on the board in portrait.</p>
       </div>
     </aside>
   )
