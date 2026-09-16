@@ -9,7 +9,7 @@
  * Unit scale: 1 unit = 1 metre. The Professor is 1.8m; a lane is 1.8m wide.
  */
 import * as THREE from 'three'
-import { PAL } from './palette'
+import { BIOMES, PAL, type Biome } from './palette'
 
 export const LANE_X = [-1.8, 0, 1.8] as const
 export const SEGMENT_LEN = 12
@@ -491,77 +491,277 @@ export function makePyramid(seed: number): THREE.Group {
   return g
 }
 
+/** A colossal seated statue — the city's roadside dressing. */
+function makeStatue(seed: number): THREE.Group {
+  const g = new THREE.Group()
+  const r = rnd(seed)
+  g.add(box(2.6, 0.5, 2.0, PAL.rockDark, 0, 0.25, 0))
+  g.add(box(2.2, 0.22, 1.7, PAL.cinnabar, 0, 0.6, 0))
+  g.add(box(1.7, 2.1, 1.2, PAL.plaster, 0, 1.75, 0))
+  g.add(box(0.5, 1.4, 0.5, PAL.slabWorn, -1.05, 1.6, 0))
+  g.add(box(0.5, 1.4, 0.5, PAL.slabWorn, 1.05, 1.6, 0))
+  g.add(box(1.15, 1.0, 1.0, PAL.slabWorn, 0, 3.3, 0))
+  g.add(box(1.3, 0.22, 1.1, PAL.cinnabar, 0, 3.78, 0))
+  g.add(box(0.3, 0.18, 0.1, PAL.obsidian, -0.26, 3.5, 0.53))
+  g.add(box(0.3, 0.18, 0.1, PAL.obsidian, 0.26, 3.5, 0.53))
+  g.add(box(0.8, 0.16, 0.12, PAL.obsidian, 0, 3.05, 0.53))
+  g.add(box(0.44, 0.14, 0.12, PAL.gold, 0, 3.24, 0.55))
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 4 - 0.5) * 1.5
+    const plume = box(0.3, 1.0, 0.24, i % 2 ? PAL.jade : PAL.turquoise, Math.sin(a) * 0.8, 4.2 + Math.cos(a) * 0.2, -0.1)
+    plume.rotation.z = -a
+    g.add(plume)
+  }
+  g.rotation.y = (r() - 0.5) * 0.3
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
+/** A run of fortress wall with battlements and a flame on top. */
+function makeWallRun(biome: Biome, seed: number): THREE.Group {
+  const g = new THREE.Group()
+  const r = rnd(seed)
+  g.add(box(1.1, 2.4, SEGMENT_LEN, biome.edge, 0, 1.2, -SEGMENT_LEN / 2))
+  g.add(box(1.3, 0.3, SEGMENT_LEN, biome.edgeTop, 0, 2.5, -SEGMENT_LEN / 2))
+  for (let i = 0; i < 6; i++) {
+    g.add(box(1.3, 0.6, 1.1, biome.edgeTop, 0, 2.95, -i * 2 - 1))
+  }
+  if (r() > 0.4) {
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.1, 6), mat(PAL.flame, { emissive: PAL.flame, emissiveIntensity: 1.2 }))
+    flame.position.set(0, 3.7, -3 - r() * 6)
+    g.add(flame)
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.6, 6), mat(PAL.gold, { emissive: PAL.gold, emissiveIntensity: 1.5 }))
+    inner.position.copy(flame.position)
+    inner.position.y -= 0.15
+    g.add(inner)
+  }
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
 /**
- * One 12m module of sacbé. Modules are recycled six at a time, so everything
- * here is cheap — no lights, emissive materials stand in for glow.
+ * One 12m module of road. Modules are recycled eight at a time, so everything
+ * here is cheap: no lights, emissive materials stand in for glow. The biome
+ * decides the surface, the lane markers, the cadence markers, the edging and
+ * the roadside dressing — the lane geometry never moves.
  */
-export function makeTrackSegment(seed = 1): THREE.Group {
+export function makeTrackSegment(seed = 1, biome: Biome = BIOMES[1]): THREE.Group {
   const g = new THREE.Group()
   const r = rnd(seed)
 
   for (let i = 0; i < 4; i++) {
     const z = -i * 3 - 1.5
     for (let l = 0; l < 3; l++) {
-      const slab = box(LANE_X[1] + 1.72, 0.3, 2.86, (i + l) % 2 ? PAL.slabLight : PAL.slabDark, LANE_X[l], -0.15, z)
+      const slab = box(LANE_X[1] + 1.72, 0.3, 2.86, (i + l) % 2 ? biome.surfaceLight : biome.surfaceDark, LANE_X[l], -0.15, z)
       slab.position.y += (r() - 0.5) * 0.015
       g.add(slab)
     }
-    // Painted glyph band across the joint — the speed read at 20 m/s.
-    g.add(box(5.6, 0.22, 0.14, PAL.cinnabar, 0, -0.09, z + 1.5))
-    for (let k = -2; k <= 2; k++) {
-      if (r() < 0.4) continue
-      g.add(box(0.2, 0.2, 0.16, PAL.jade, k * 1.1, -0.08, z + 1.5))
+    // The cadence marker across every joint: the speed read at 20 m/s.
+    if (biome.edging === 'verge') {
+      // Plank sleeper, proud of the earth and slightly uneven.
+      // Half-buried sleepers: proud enough to pulse past at 20 m/s, not so
+      // proud that the trail reads as a boardwalk.
+      const plank = box(5.2, 0.1, 0.22, biome.marker, 0, -0.04, z + 1.5)
+      plank.rotation.z = (r() - 0.5) * 0.02
+      g.add(plank)
+      g.add(box(5.2, 0.04, 0.07, biome.markerInlay, 0, 0.01, z + 1.44))
+    } else {
+      g.add(box(5.6, 0.22, 0.14, biome.marker, 0, -0.09, z + 1.5))
+      for (let k = -2; k <= 2; k++) {
+        if (r() < 0.4) continue
+        g.add(box(0.2, 0.2, 0.16, biome.markerInlay, k * 1.1, -0.08, z + 1.5))
+      }
     }
   }
-  g.add(box(0.1, 0.34, SEGMENT_LEN, PAL.groove, -0.9, -0.07, -SEGMENT_LEN / 2))
-  g.add(box(0.1, 0.34, SEGMENT_LEN, PAL.groove, 0.9, -0.07, -SEGMENT_LEN / 2))
+
+  // Lane lines: carved grooves, worn cart ruts or obsidian inlay.
+  for (const x of [-0.9, 0.9]) {
+    if (biome.edging === 'verge') {
+      g.add(box(0.22, 0.3, SEGMENT_LEN, biome.divider, x, -0.14, -SEGMENT_LEN / 2))
+      g.add(box(0.07, 0.3, SEGMENT_LEN, biome.dividerHighlight, x + 0.12, -0.12, -SEGMENT_LEN / 2))
+    } else {
+      g.add(box(0.1, 0.34, SEGMENT_LEN, biome.divider, x, -0.07, -SEGMENT_LEN / 2))
+    }
+  }
 
   for (const side of [-1, 1]) {
-    // Serpent-body balustrade running the length of the module
-    g.add(box(0.58, 0.52, SEGMENT_LEN, PAL.slabDark, side * 3.1, 0.06, -SEGMENT_LEN / 2))
-    g.add(box(0.62, 0.12, SEGMENT_LEN, PAL.slabWorn, side * 3.1, 0.34, -SEGMENT_LEN / 2))
-    // Painted serpent banding along the body — inset, so it reads as paint.
-    for (let i = 0; i < 8; i++) {
-      g.add(box(0.6, 0.12, 0.7, i % 2 ? PAL.cinnabar : PAL.jade, side * 3.1, 0.14, -i * 1.5 - 0.6))
+    if (biome.edging === 'balustrade') {
+      g.add(box(0.58, 0.52, SEGMENT_LEN, PAL.slabDark, side * 3.1, 0.06, -SEGMENT_LEN / 2))
+      g.add(box(0.62, 0.12, SEGMENT_LEN, PAL.slabWorn, side * 3.1, 0.34, -SEGMENT_LEN / 2))
+      for (let i = 0; i < 8; i++) {
+        g.add(box(0.6, 0.12, 0.7, i % 2 ? PAL.cinnabar : PAL.jade, side * 3.1, 0.14, -i * 1.5 - 0.6))
+      }
+      const head = makeSerpentHead(1)
+      head.position.set(side * 3.1, 0.1, -SEGMENT_LEN + 0.6)
+      g.add(head)
+    } else if (biome.edging === 'wall') {
+      const wall = makeWallRun(biome, seed * 3 + side)
+      wall.position.set(side * 3.5, 0, 0)
+      g.add(wall)
+    } else {
+      // Trodden verge: earth banked up where feet have pushed it aside.
+      g.add(box(0.7, 0.22, SEGMENT_LEN, biome.edge, side * 3.2, 0.02, -SEGMENT_LEN / 2))
+      g.add(box(0.5, 0.1, SEGMENT_LEN, biome.edgeTop, side * 3.4, 0.12, -SEGMENT_LEN / 2))
+      for (let i = 0; i < 4; i++) {
+        const fern = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34 + r() * 0.26, 0), mat(PAL.leaf))
+        fern.position.set(side * (3.7 + r() * 0.5), 0.2, -r() * SEGMENT_LEN)
+        fern.scale.y = 0.6
+        g.add(fern)
+      }
     }
-    g.add(box(1.0, 0.3, SEGMENT_LEN, PAL.slabWorn, side * 3.8, -0.1, -SEGMENT_LEN / 2))
+    g.add(box(1.0, 0.3, SEGMENT_LEN, biome.ground, side * (biome.edging === 'wall' ? 4.4 : 3.9), -0.1, -SEGMENT_LEN / 2))
 
-    const head = makeSerpentHead(1)
-    head.position.set(side * 3.1, 0.1, -SEGMENT_LEN + 0.6)
-    g.add(head)
-
-    if (r() > 0.45) {
-      const stela = makeStela(seed * 7 + side * 3)
-      stela.position.set(side * 4.6, 0, -2 - r() * 8)
-      stela.rotation.y = side * 0.25
-      g.add(stela)
+    // Roadside dressing
+    if (biome.props === 'stelae') {
+      if (r() > 0.45) {
+        const stela = makeStela(seed * 7 + side * 3)
+        stela.position.set(side * 4.6, 0, -2 - r() * 8)
+        stela.rotation.y = side * 0.25
+        g.add(stela)
+      }
+      if (r() > 0.5) {
+        const br = makeBrazier()
+        br.position.set(side * 4.2, 0, -1 - r() * 9)
+        g.add(br)
+      }
+    } else if (biome.props === 'statues') {
+      if (r() > 0.35) {
+        const st = makeStatue(seed * 5 + side)
+        st.position.set(side * 5.6, 0, -2 - r() * 8)
+        g.add(st)
+      }
+    } else {
+      // Stones and the odd fallen log, always off the running line.
+      for (let i = 0; i < 3; i++) {
+        const stone = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16 + r() * 0.22, 0), mat(PAL.rockDark))
+        stone.position.set(side * (2.4 + r() * 1.4), 0.04, -r() * SEGMENT_LEN)
+        stone.scale.y = 0.6
+        stone.castShadow = true
+        g.add(stone)
+      }
+      if (r() > 0.6) {
+        const log = cyl(0.26, 0.3, 2.6 + r(), 6, PAL.trunk, side * 4.4, 0.26, -r() * SEGMENT_LEN)
+        log.rotation.z = Math.PI / 2
+        log.rotation.y = (r() - 0.5) * 0.8
+        g.add(log)
+      }
     }
-    if (r() > 0.5) {
-      const br = makeBrazier()
-      br.position.set(side * 4.2, 0, -1 - r() * 9)
-      g.add(br)
-    }
 
-    // Jungle pressing in on both sides
-    for (let i = 0; i < 2; i++) {
-      const z = -r() * SEGMENT_LEN
-      const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9 + r() * 0.6, 0), mat(r() > 0.5 ? PAL.leaf : PAL.leafDeep))
-      bush.position.set(side * (5.3 + r() * 1.2), 0.3, z)
-      bush.scale.y = 0.7
-      bush.castShadow = true
-      g.add(bush)
-      const trunkX = side * (6.4 + r() * 2)
-      g.add(cyl(0.24, 0.34, 5 + r() * 2, 6, PAL.trunk, trunkX, 2.5, z - 2 - r() * 4))
-      const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(1.9 + r() * 0.7, 0), mat(PAL.leafDeep))
-      canopy.position.set(trunkX, 5.2 + r(), z - 2 - r() * 4)
-      canopy.scale.y = 0.6
-      g.add(canopy)
+    // Jungle, where there is any
+    if (biome.trees) {
+      for (let i = 0; i < 2; i++) {
+        const z = -r() * SEGMENT_LEN
+        const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9 + r() * 0.6, 0), mat(r() > 0.5 ? PAL.leaf : PAL.leafDeep))
+        bush.position.set(side * (5.3 + r() * 1.2), 0.3, z)
+        bush.scale.y = 0.7
+        bush.castShadow = true
+        g.add(bush)
+        const trunkX = side * (6.4 + r() * 2)
+        g.add(cyl(0.24, 0.34, 5 + r() * 2, 6, PAL.trunk, trunkX, 2.5, z - 2 - r() * 4))
+        const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(1.9 + r() * 0.7, 0), mat(PAL.leafDeep))
+        canopy.position.set(trunkX, 5.2 + r(), z - 2 - r() * 4)
+        canopy.scale.y = 0.6
+        g.add(canopy)
+      }
     }
   }
 
   g.userData.length = SEGMENT_LEN
   return g
 }
+
+/**
+ * The gate between zones: a colossal idol whose open jaws are the doorway —
+ * the zoomorphic portal the Maya built at Chicanná. The same face is carved on
+ * the boulder chasing the player and on the idol they collect.
+ *
+ * The opening clears the full 5.6m road: the upper fangs hang at the corners
+ * and the lower teeth sit in the threshold outside the road, so nothing ever
+ * rises into a running lane.
+ */
+export function makeGate(biome: Biome): THREE.Group {
+  const g = new THREE.Group()
+  const c = biome.gate
+  const H = c.height
+  const OPEN = 6.4 // clears the 5.6m road
+  const JAMB = 2.2
+  const halfFace = OPEN / 2 + JAMB
+
+  for (const side of [-1, 1]) {
+    const x = side * (OPEN / 2 + JAMB / 2)
+    g.add(box(JAMB, H, 2.4, c.face, x, H / 2, 0))
+    g.add(box(JAMB + 0.3, 0.9, 2.7, c.brow, x, H - 0.45, 0))
+    // Eye socket, set into the jamb above the jaw line
+    const eye = box(1.5, 1.0, 0.5, c.eye, x, H * 0.62, 1.3)
+    g.add(eye)
+    const pupil = box(0.7, 0.5, 0.3, c.pupil, x, H * 0.62, 1.55, {
+      emissive: c.pupil,
+      emissiveIntensity: c.pupilGlow,
+    })
+    g.add(pupil)
+    // Ear flare
+    g.add(box(0.7, H * 0.4, 1.6, c.brow, side * (halfFace + 0.3), H * 0.55, 0))
+    // Lower tooth, in the threshold and outside the road
+    const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.2, 5), mat(c.fang))
+    tooth.position.set(side * (OPEN / 2 - 0.5), 0.6, 1.1)
+    g.add(tooth)
+    // Upper fang, hung at the corner of the opening
+    const fang = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.5, 5), mat(c.fang))
+    fang.position.set(side * (OPEN / 2 - 0.5), H * 0.46 - 0.75, 1.1)
+    fang.rotation.x = Math.PI
+    g.add(fang)
+  }
+
+  // Brow above the jaws, and the snout between the eyes
+  g.add(box(halfFace * 2, H * 0.5, 2.4, c.face, 0, H * 0.75, 0))
+  g.add(box(halfFace * 2 + 0.6, 1.0, 2.8, c.brow, 0, H - 0.5, 0))
+  g.add(box(2.2, 0.9, 0.8, c.brow, 0, H * 0.56, 1.5))
+  // Threshold: the lower jaw the runner crosses
+  g.add(box(halfFace * 2, 0.24, 2.6, c.jaw, 0, 0.12, 0))
+
+  if (c.crest) {
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 6 - 0.5) * 2
+      const plume = box(0.5, 1.6, 0.4, i % 2 ? c.crest[0] : c.crest[1], Math.sin(a) * halfFace * 0.8, H + 0.7 + Math.cos(a) * 0.3, 0)
+      plume.rotation.z = -a * 0.5
+      g.add(plume)
+    }
+  }
+  if (c.vines) {
+    for (let i = 0; i < 6; i++) {
+      const x = (i / 5 - 0.5) * halfFace * 2
+      g.add(box(0.12, 1.2 + (i % 3) * 0.7, 0.12, PAL.vine, x, H - 0.9, 1.3))
+    }
+    for (let i = 0; i < 4; i++) {
+      const moss = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), mat(PAL.moss))
+      moss.position.set((i / 3 - 0.5) * halfFace * 1.8, H * (0.3 + 0.4 * (i % 2)), 1.25)
+      moss.scale.set(1, 0.5, 0.3)
+      g.add(moss)
+    }
+  }
+  if (c.tunnel) {
+    // A throat behind the jaws — the only gate with an inside.
+    for (const side of [-1, 1]) {
+      g.add(box(JAMB, H, 7, c.face, side * (OPEN / 2 + JAMB / 2), H / 2, -4.6))
+    }
+    g.add(box(halfFace * 2, 1.6, 7, c.face, 0, H - 0.8, -4.6))
+    g.add(box(halfFace * 2 + 1.2, 1.2, 8.4, c.brow, 0, H + 0.4, -4.6))
+    for (let i = 0; i < 7; i++) {
+      g.add(box(1.2, 1.0, 1.2, c.face, -halfFace + 0.6 + i * (halfFace / 3.2), H + 1.4, -4.6))
+    }
+  }
+
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
+/* ----------------------------------------------------------------- light */
 
 /**
  * A gradient sky dome. One unlit sphere, no fog, one draw call — and it is
@@ -589,9 +789,8 @@ export function makeSky(): THREE.Mesh {
   return sky
 }
 
-/* ----------------------------------------------------------------- light */
-
 /** Soft blob shadow for studio turntables — no shadow map needed. */
+
 export function contactShadow(radius = 1.3, opacity = 0.4): THREE.Mesh {
   const c = document.createElement('canvas')
   c.width = c.height = 128

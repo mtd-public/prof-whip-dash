@@ -47,8 +47,13 @@ export const TUNING = {
   /** Metres either side of the runner over which the swerve opens and closes. */
   despawnSwerveWindow: 5,
 
-  /** Metres per level. The level meter fills across one of these. */
+  /** Metres per level. The level meter fills across one of these, and the
+   *  zone changes with it — the theme loops every three. */
   levelDistance: 500,
+  /** Level 1 is the on-ramp: one lane claimed, slower vermin, gentler rows.
+   *  Difficulty keys off the level, never the zone, so a looping theme never
+   *  walks the difficulty back down. */
+  gentleLevels: 1,
 
   coinValue: 1,
   idolValue: 25,
@@ -226,7 +231,10 @@ export function whip(w: World) {
  * reacting to a coin flip.
  */
 function rollPattern(w: World): [number, number, number] {
-  const claims = w.dist > 900 ? 2 : w.dist > 260 && Math.random() < 0.55 ? 2 : 1
+  // Level 1 never claims two lanes; from level 2 it becomes a coin flip that
+  // hardens as the levels stack, and from level 4 it is the norm.
+  const twoLaneChance = w.level <= TUNING.gentleLevels ? 0 : Math.min(0.85, 0.3 + (w.level - 2) * 0.22)
+  const claims = Math.random() < twoLaneChance ? 2 : 1
   const p: [number, number, number] = [0, 0, 0]
   const available = [0, 1, 2].filter((l) => w.boulders[l].cooldown <= 0)
   const order = (available.length ? available : [0, 1, 2]).sort(() => Math.random() - 0.5)
@@ -293,7 +301,8 @@ export function step(w: World, dt: number) {
   if (w.nextIn <= 0) {
     w.pattern = w.nextPattern.some((v) => v === 2) ? w.nextPattern : rollPattern(w)
     w.nextPattern = rollPattern(w)
-    w.nextIn = TUNING.rowHold[0] + Math.random() * (TUNING.rowHold[1] - TUNING.rowHold[0])
+    const relief = w.level <= TUNING.gentleLevels ? 1.6 : Math.max(0, 0.9 - (w.level - 2) * 0.3)
+    w.nextIn = TUNING.rowHold[0] + relief + Math.random() * (TUNING.rowHold[1] - TUNING.rowHold[0])
   }
   const committing = w.nextIn < TUNING.telegraph
   for (let l = 0; l < LANES; l++) {
@@ -377,7 +386,9 @@ export function step(w: World, dt: number) {
   // --- vermin ahead -------------------------------------------------------
   w.spawnIn -= dt
   if (w.spawnIn <= 0) {
-    w.spawnIn = Math.max(0.75, 2.2 - w.dist * 0.0012) + Math.random() * 0.8
+    // Vermin arrive further apart on the on-ramp and close up with the level.
+    const gap = w.level <= TUNING.gentleLevels ? 2.8 : Math.max(0.75, 2.4 - (w.level - 1) * 0.3)
+    w.spawnIn = gap + Math.random() * 0.8
     w.critters.push({
       id: w.nextId++,
       kind: Math.random() < 0.6 ? 'spider' : 'scarab',

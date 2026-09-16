@@ -157,13 +157,32 @@ tone mapping and timing.
 | Device pixel ratio | capped at 2.0 |
 | Track | six recycled 12m modules, ~1,900 tris each |
 
-## 9. Progression
+## 9. Progression — the three zones
 
-| Biome | From | Change |
-| --- | --- | --- |
-| Causeway | 0m | Sandstone, jade canopy, torchlight |
-| Flooded vault | 1500m | Wet slabs with a reflection plane, cooler key, boulders throw spray |
-| The furnace | 3500m | Obsidian and ember light; the Idol's eyes stop being the brightest thing on screen |
+One zone per level, 500m each, and the theme **loops**: zone index is
+`(level - 1) % 3`.
+
+| Level | Zone | Ground | Entered through |
+| --- | --- | --- | --- |
+| 1, 4, 7… | Jungle trail | Packed earth, cart ruts, half-buried sleepers | Timber idol, moss and vines |
+| 2, 5, 8… | The sacbé | Limestone slabs, carved grooves, cinnabar bands | The Kukulkán mask in plaster |
+| 3, 6, 9… | The city | Flagstone plaza, obsidian inlay, fortress walls | The stone maw, eyes alight |
+
+Because the theme loops, **difficulty ramps off the level, never the zone** —
+otherwise the game would get easier every time the trail came back around.
+Level 1 is the on-ramp: one lane claimed at a time, vermin 2.8s apart, longer
+gaps between boulder rows. From level 2 a second claimed lane becomes a coin
+flip that hardens each level, capping at 85%, and vermin close up to 0.75s.
+
+The gate rides the seam module: each 12m module is rebuilt in the new zone as
+it recycles behind the camera, so the boundary enters 96m out and sweeps toward
+the runner over about 7s, with the idol's jaws arriving at the seam. Its
+opening clears the full 5.6m road, upper fangs hang at the corners and the
+lower teeth sit outside the road, so nothing rises into a running lane.
+
+Dust comes off the heels while running — a puff every 0.14s, growing 0.26m to
+0.72m and fading over ~0.4s — with a six-particle scuff thrown out of every
+lane change. Flat ground-aligned quads, pooled at 40, tinted per zone.
 
 ## 10. Open questions
 
