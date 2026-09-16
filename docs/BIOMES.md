@@ -44,13 +44,25 @@ the far end and sweeps toward the runner. At level-up speed (~13 m/s) the seam
 reaches the runner in about 7s and the last old-biome module leaves about 7s
 after that. Swapping all eight at once would pop the world over.
 
-**The gate** rides the seam module and passes over the runner, turning a
-material change into a place you run through. One prop, three dressings: a
-lashed timber gate into the trail, a corbelled stone arch into the sacbé, a
-fortress tunnel mouth into the city. Each opening clears the full 5.6m road
-with headroom, so nothing about lane switching or the whip changes underneath.
-The tunnel is the only one with an inside — about 0.3s at run speed, enough for
-the light to drop and come back.
+**The gate** is a colossal idol whose open jaws are the doorway — the
+zoomorphic portal the Maya built at Chicanná, where you enter through the face
+of the earth monster. It is the same face already carved on the boulder that
+chases you and on the jade idol you collect, so the head arrives at three
+scales: something you take, something that hunts you, something you run inside.
+
+One builder, three dressings:
+
+| Zone | Dressing |
+| --- | --- |
+| 1 · Trail | Weathered timber idol, moss and hanging vines |
+| 2 · Sacbé | The Kukulkán mask in painted plaster, jade and turquoise crest |
+| 3 · City | The same face at city scale in the fortress wall, flames in its eye sockets, a throat behind the jaws |
+
+The jaws clear the full 5.6m road. Upper fangs hang at the corners of the
+opening and the lower teeth are set into the threshold **outside** the road, so
+nothing ever rises into a running lane — lane switching and the whip are
+unaffected as you pass through. The city maw is the only one with an inside:
+about 0.3s at run speed, enough for the light to drop and come back.
 
 ## Dust
 
@@ -85,7 +97,7 @@ read as an arrival — brighter ground, harder edges.
 | `src/game/palette.ts` | A `BIOMES` table with three entries: surface tones, marker colours, edging, prop list, dust colour |
 | `src/game/kit.ts` | `makeTrackSegment(seed, biome)` branches surface, dividers, cadence markers, edging and props. Jungle, pyramid and sky code untouched |
 | `src/game/scene3d.ts` | On recycle, rebuild a module if the level's biome changed. Eight rebuilds spread over ~7s. Plus the gate prop on the seam module and the pooled dust emitter |
-| `src/game/kit.ts` (props) | Three gates, the city's fortress wall and battlements, colossal statues, two larger pyramids |
+| `src/game/kit.ts` (props) | One mask-portal builder (brow, eyes, snout, jaws, fangs, threshold) recoloured and rescaled per zone; the city's fortress wall and battlements, colossal statues, larger pyramids |
 | `src/game/physics.ts` | Nothing. Biome derives from `level`, which already exists |
 
 Triangle count is roughly even — sleepers and ruts replace bands and grooves
