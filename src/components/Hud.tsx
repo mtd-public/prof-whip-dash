@@ -2,34 +2,36 @@ import { AnimatePresence, motion } from 'framer-motion'
 import type { GameState } from '../game/types'
 import type { Toast } from '../game/useGameEngine'
 
-const HP_SEGMENTS = 6
-
 interface HudProps {
   state: GameState
   toast: Toast | null
 }
 
 /**
- * Everything the player reads mid-run. The lane ribbon is the important part:
- * the boulders are behind the camera, so the pips are the only way to know
- * which lane is about to grind.
+ * Everything the player reads mid-run, in priority order down the screen:
+ * how much life is left, how close the next level is, then the counters.
+ * Threat itself is read off the causeway now — the overhead camera keeps
+ * every lane and the blocks holding them in frame.
  */
 export function Hud({ state, toast }: HudProps) {
-  const filled = Math.ceil((state.hp / 100) * HP_SEGMENTS)
-
   return (
     <div className="hud" aria-hidden="true">
       <div className="hud__top">
-        <div className="ribbon">
-          {state.lanes.map((lane, i) => (
-            <i key={i} className="pip" data-state={lane === 2 ? 'claimed' : lane === 1 ? 'committing' : 'clear'} />
-          ))}
-        </div>
         <div className={`health${state.hp <= 34 ? ' health--low' : ''}`}>
-          {Array.from({ length: HP_SEGMENTS }, (_, i) => (
-            <i key={i} className={i < filled ? '' : 'spent'} />
-          ))}
+          <i style={{ width: `${Math.max(0, Math.min(100, state.hp))}%` }} />
+          {/* Quarter marks, so hits stay countable without segmenting the bar. */}
+          <u style={{ left: '25%' }} />
+          <u style={{ left: '50%' }} />
+          <u style={{ left: '75%' }} />
         </div>
+
+        <div className="level">
+          <div className="level__bar">
+            <i style={{ width: `${Math.round(state.levelProgress * 100)}%` }} />
+          </div>
+          <span className="level__tag">Lv {state.level}</span>
+        </div>
+
         <div className="readout">
           <span className="readout__coins">
             <b>{state.coins.toLocaleString()}</b> coins
@@ -45,7 +47,7 @@ export function Hud({ state, toast }: HudProps) {
             </motion.span>
           )}
           <span>
-            <b>{Math.floor(state.dist)}</b> m
+            <b>{Math.ceil(state.toNextLevel)}</b> m to Lv {state.level + 1}
           </span>
         </div>
       </div>

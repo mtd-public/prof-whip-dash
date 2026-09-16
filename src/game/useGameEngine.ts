@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createWorld, moveLane, score, step, whip, type World } from './physics'
+import { createWorld, levelProgress, moveLane, score, step, TUNING, whip, type World } from './physics'
 import type { GamePhase, GameState } from './types'
 
 const BEST_KEY = 'whipdash.best'
@@ -15,7 +15,19 @@ function loadBest(): number {
 }
 
 function initialState(best: number): GameState {
-  return { phase: 'ready', coins: 0, score: 0, best, dist: 0, hp: 100, multiplier: 1, lanes: [0, 0, 0], grinding: false }
+  return {
+    phase: 'ready',
+    coins: 0,
+    score: 0,
+    best,
+    dist: 0,
+    hp: 100,
+    multiplier: 1,
+    level: 1,
+    levelProgress: 0,
+    toNextLevel: TUNING.levelDistance,
+    grinding: false,
+  }
 }
 
 export interface Toast {
@@ -89,6 +101,7 @@ export function useGameEngine() {
         if (w.fx.idol) pushToast(`IDOL +${25 * w.multiplier}`, 'gold')
         else if (w.fx.coin && w.multiplier > 1) pushToast(`×${w.multiplier} DANGER`, 'hazard')
         if (w.fx.hit) pushToast('OW', 'hazard')
+        if (w.fx.levelUp) pushToast(`LEVEL ${w.level}`, 'jade')
 
         if (w.fx.hit || w.fx.grind) navigator.vibrate?.(w.fx.hit ? [30, 40, 30] : 12)
 
@@ -102,7 +115,9 @@ export function useGameEngine() {
             dist: w.dist,
             hp: w.hp,
             multiplier: w.multiplier,
-            lanes: [w.pattern[0], w.pattern[1], w.pattern[2]],
+            level: w.level,
+            levelProgress: levelProgress(w),
+            toNextLevel: Math.max(0, TUNING.levelDistance - (w.dist % TUNING.levelDistance)),
             grinding: w.grinding,
           }))
         }

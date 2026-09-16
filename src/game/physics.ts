@@ -47,6 +47,9 @@ export const TUNING = {
   /** Metres either side of the runner over which the swerve opens and closes. */
   despawnSwerveWindow: 5,
 
+  /** Metres per level. The level meter fills across one of these. */
+  levelDistance: 500,
+
   coinValue: 1,
   idolValue: 25,
   /** Share of coin runs that deliberately thread a dangerous lane. */
@@ -99,6 +102,8 @@ export interface Fx {
   laneChange: number
   /** A boulder hit its five-second limit and rolled away. */
   despawn: number
+  /** Another 500m banked. */
+  levelUp: number
 }
 
 export interface World {
@@ -107,6 +112,8 @@ export interface World {
   laneX: number
   speed: number
   dist: number
+  /** Starts at 1 and steps up every `levelDistance` metres. */
+  level: number
   hp: number
   coins: number
   combo: number
@@ -137,7 +144,7 @@ export interface World {
 export const LANE_X = [-1.8, 0, 1.8]
 
 function emptyFx(): Fx {
-  return { coin: 0, idol: 0, crack: 0, perfect: 0, hit: 0, grind: 0, laneChange: 0, despawn: 0 }
+  return { coin: 0, idol: 0, crack: 0, perfect: 0, hit: 0, grind: 0, laneChange: 0, despawn: 0, levelUp: 0 }
 }
 
 export function createWorld(): World {
@@ -146,6 +153,7 @@ export function createWorld(): World {
     laneX: LANE_X[1],
     speed: TUNING.baseSpeed,
     dist: 0,
+    level: 1,
     hp: 100,
     coins: 0,
     combo: 0,
@@ -266,6 +274,12 @@ export function step(w: World, dt: number) {
 
   w.speed = Math.min(TUNING.maxSpeed, TUNING.baseSpeed + w.dist * TUNING.speedPerMetre) * (w.stumble > 0 ? 0.55 : 1)
   w.dist += w.speed * dt
+
+  const level = Math.floor(w.dist / TUNING.levelDistance) + 1
+  if (level > w.level) {
+    w.level = level
+    w.fx.levelUp++
+  }
   w.stumble = Math.max(0, w.stumble - dt)
   w.whipCooldown = Math.max(0, w.whipCooldown - dt)
   w.whipK = w.whipCooldown > 0 ? 1 - w.whipCooldown / TUNING.whipCooldown : -1
@@ -424,4 +438,9 @@ export function step(w: World, dt: number) {
 
 export function score(w: World): number {
   return w.coins * 10 + Math.floor(w.dist)
+}
+
+/** How far through the current level the runner is, 0–1. */
+export function levelProgress(w: World): number {
+  return (w.dist % TUNING.levelDistance) / TUNING.levelDistance
 }
