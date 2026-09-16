@@ -39,12 +39,12 @@ export function GameOverlay({ state, onStart, onResume }: GameOverlayProps) {
                 </p>
                 <dl className="keys">
                   <div>
-                    <dt>Swipe &larr; &rarr;</dt>
-                    <dd>Switch lane</dd>
+                    <dt>Swipe or tap</dt>
+                    <dd>Tap a side of the screen, or swipe, to switch lane</dd>
                   </div>
                   <div>
-                    <dt>Tap / Space</dt>
-                    <dd>Crack the whip at what's ahead</dd>
+                    <dt>Whip button</dt>
+                    <dd>Bottom right — cracks at what's ahead of you</dd>
                   </div>
                   <div>
                     <dt>Red pip</dt>
