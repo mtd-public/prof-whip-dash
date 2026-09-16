@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#101815" />
+    <title>WhipDash Art Bible</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;700&display=swap"
+    />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="bar__in">
+        <div class="mark">Professor <span>WhipDash</span></div>
+        <div class="note">art &amp; systems bible — v0.2</div>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <section class="hero">
+        <div>
+          <div class="eyebrow">Three-lane endless runner · Mayan causeway · portrait WebGL</div>
+          <h1 class="title">Three lanes.<em>Three boulders.</em>All the gold<br />in the worst one.</h1>
+          <p class="lede">
+            A fedora'd academic outruns a rockslide down a sacbé — the white limestone road of a Mayan city. The boulders
+            are <strong>behind</strong> him and they grind rather than splat, so a claimed lane is survivable, expensive,
+            and exactly where the coin runs are threaded. The spiders are in <strong>front</strong>, and the answer to
+            those is a whip crack timed to the metre.
+          </p>
+          <div class="tags">
+            <span class="tag">three.js</span><span class="tag">primitives only, 0 textures</span>
+            <span class="tag">9:16 first</span><span class="tag">one thumb</span><span class="tag">no downloads</span>
+          </div>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <canvas id="v-hero"></canvas>
+            <div class="vig"></div>
+            <div class="grit"></div>
+            <div class="hud">
+              <div class="hud__top">
+                <div class="ribbon"><i class="pip hot"></i><i class="pip warn"></i><i class="pip"></i></div>
+                <div class="hp"><i></i><i></i><i></i><i class="spent"></i><i class="spent"></i><i class="spent"></i></div>
+                <div class="readout">
+                  <span><b>1,240</b> coins</span><span class="mult">×3 danger</span><span><b>620</b> m</span>
+                </div>
+              </div>
+              <div class="toast">IDOL +75</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <p class="caption">Live: the actual game engine, the actual camera, HUD at true size. It plays itself while you read.</p>
+
+      <section>
+        <div class="sec">
+          <div class="eyebrow">Concept 01 — the core problem</div>
+          <h2>The chase you can't see</h2>
+          <p class="lede">
+            A chase camera looks forward; the boulders are behind. If the player can't read which lanes are claimed,
+            every hit feels unfair. Four devices put the rear threat on screen without ever turning the camera around.
+          </p>
+        </div>
+        <ol class="beats">
+          <li>
+            <div>
+              <h3>The lane ribbon</h3>
+              <p>
+                Three pips across the top, welded to the lanes below them. Jade = clear, amber = a boulder is committing
+                (1.2s telegraph), red = claimed and grinding. The only pure-UI element in the game, and the one you
+                actually play off.
+              </p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>Shadows arriving first</h3>
+              <p>
+                The key light sits behind the runner, so each boulder throws a long shadow <em>past</em> him and onto the
+                slabs ahead. Shadow width reads as distance: a hard black bar creeping up your lane is one second out.
+              </p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>Grit at the frame edge</h3>
+              <p>Limestone dust, tinted red and tightened as the boulder in your lane closes. Peripheral, never blocking.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>Boulders roll into frame</h3>
+              <p>
+                Idle boulders sit 11.5m back — behind the camera, out of shot. When a lane is claimed the block sweeps
+                past the lens into view. You don't read a distance; you watch it arrive.
+              </p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section>
+        <div class="sec">
+          <div class="eyebrow">Concept 02 — the reason to go there</div>
+          <h2>Gold where it hurts</h2>
+          <p class="lede">
+            A lane that only hurts is a lane you never enter, and the boulders stop mattering. So 70% of coin runs are
+            deliberately threaded through the lane a boulder owns or is about to, and the payout scales with how much
+            trouble you're in. The whole game is one question: how long can you stay in the red lane?
+          </p>
+        </div>
+        <div class="ladder">
+          <div class="rung ok">
+            <span class="st">Clear lane</span><b>×1</b>
+            <p>1 coin each. Healing at +4 HP/s after 2.5s clear.</p>
+          </div>
+          <div class="rung warn">
+            <span class="st">Committing</span><b>×2</b>
+            <p>The amber pip. Already draining 6 HP/s — and paying double.</p>
+          </div>
+          <div class="rung hot">
+            <span class="st">Grinding</span><b>×3</b>
+            <p>18 HP/s off the bar. Coins triple, the idol pays 75.</p>
+          </div>
+        </div>
+        <dl class="spec">
+          <div>
+            <dt>Coin run<small>4–8 coins, 2.2m apart, one lane. 70% spawn in a lane that is or is about to be claimed.</small></dt>
+            <dd>1 × mult</dd>
+          </div>
+          <div>
+            <dt>Jade idol<small>Every 16–26s, always in the dangerous lane. Worth a whole coin run on its own.</small></dt>
+            <dd>25 × mult</dd>
+          </div>
+          <div>
+            <dt>Score<small>Coins are the skill expression; distance is the participation trophy.</small></dt>
+            <dd>coins×10 + m</dd>
+          </div>
+          <div>
+            <dt>Health pool<small>Six visible segments, so the player counts hits rather than pixels.</small></dt>
+            <dd>100 HP</dd>
+          </div>
+          <div>
+            <dt>Vermin hit<small>Flat cost plus a 0.6s stumble — the real price is the boulders closing 4m.</small></dt>
+            <dd>−12 HP</dd>
+          </div>
+          <div>
+            <dt>Whip window<small>Target 1.5–6m out in your own lane; perfect band 3.0–3.8m gives +8% speed.</small></dt>
+            <dd>0.42 s</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section>
+        <div class="sec">
+          <div class="eyebrow">Concept 03 — the cast</div>
+          <h2>Blocked out from primitives</h2>
+          <p class="lede">
+            Every model below is boxes, cylinders and icosahedra assembled in code — no downloaded mesh, no texture, no
+            UVs. Chunky Kenney-scale volumes, flat-shaded facets, one warm key and a cool bounce. Drag any of them to
+            spin it.
+          </p>
+        </div>
+        <div class="grid g2" style="margin-bottom: 14px">
+          <div class="card">
+            <canvas class="view" id="v-prof"></canvas>
+            <div class="card__body">
+              <span class="role gd">Player · 1.8 m</span>
+              <h3>Professor WhipDash</h3>
+              <p>
+                Fedora, goggles on the brim, field vest, satchel. Silhouette test: the hat and the coiled whip must read
+                at 40px tall in a 9:16 frame, so the brim is oversized to 0.88m.
+              </p>
+            </div>
+          </div>
+          <div class="card">
+            <canvas class="view" id="v-whip"></canvas>
+            <div class="card__body">
+              <span class="role gd">Verb · 9 links</span>
+              <h3>The crack</h3>
+              <p>
+                The lash is a chain of nine tapering links, each parented to the last; a sine wave travelling down the
+                chain straightens it at 0.18s and snaps the tip past the arm. The hit frame is the straight frame.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="grid g3">
+          <div class="card">
+            <canvas class="view" id="v-lime"></canvas>
+            <div class="card__body"><span class="role hz">Boulder A</span><h3>Limestone block</h3><p>Picks one lane and stays. Never accelerates, never leaves. The metronome of the chase.</p></div>
+          </div>
+          <div class="card">
+            <canvas class="view" id="v-moss"></canvas>
+            <div class="card__body"><span class="role hz">Boulder B</span><h3>The overgrown</h3><p>Mossy, vine-trailed, lopsided. Drifts one lane every 3–5s and telegraphs with a wobble.</p></div>
+          </div>
+          <div class="card">
+            <canvas class="view" id="v-kuk"></canvas>
+            <div class="card__body"><span class="role hz">Boulder C</span><h3>Kukulkán</h3><p>A feathered-serpent mask carved into two tonnes of limestone. Obsidian eyes, jade plumes, gold band.</p></div>
+          </div>
+          <div class="card">
+            <canvas class="view" id="v-spider"></canvas>
+            <div class="card__body"><span class="role vi">Vermin · whip</span><h3>Cave spider</h3><p>Drops into your lane on a thread. Crack it, or eat 12 HP and a stumble.</p></div>
+          </div>
+          <div class="card">
+            <canvas class="view" id="v-scarab"></canvas>
+            <div class="card__body"><span class="role vi">Vermin · whip</span><h3>Jade scarab</h3><p>Trundles at ankle height. The gold horn is the aim point; a crack flips it onto its back.</p></div>
+          </div>
+          <div class="card">
+            <canvas class="view" id="v-coin"></canvas>
+            <div class="card__body"><span class="role cl">Pickup · ×mult</span><h3>Glyph coin</h3><p>Stamped gold, faintly emissive so a run reads as a line of light through the dangerous lane.</p></div>
+          </div>
+        </div>
+        <div class="grid g3" style="margin-top: 14px">
+          <div class="card">
+            <canvas class="view" id="v-idol"></canvas>
+            <div class="card__body"><span class="role cl">Pickup · 25</span><h3>Jade idol</h3><p>Plumed headdress, obsidian eyes, cinnabar plinth. Only ever spawns in the lane that hurts.</p></div>
+          </div>
+          <div class="card">
+            <canvas class="view" id="v-brazier"></canvas>
+            <div class="card__body"><span class="role">Prop</span><h3>Copal brazier</h3><p>The only warm light on the causeway. Emissive cones — no point light, no shadow cost.</p></div>
+          </div>
+          <div class="card">
+            <canvas class="view" id="v-pyr"></canvas>
+            <div class="card__body"><span class="role">Skyline</span><h3>Stepped pyramid</h3><p>Five tiers, a stair, a temple crown. Three of them recycle down a 180m span behind the jungle.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec">
+          <div class="eyebrow">Concept 04 — the world</div>
+          <h2>One 12-metre sacbé</h2>
+          <p class="lede">
+            The causeway is a single 12m prefab recycled six at a time: three limestone lanes, a painted glyph band at
+            every joint, serpent balustrades, stelae, braziers, jungle pressing in. Seeded variation keeps each module
+            deterministic but never twinned with its neighbour.
+          </p>
+        </div>
+        <div class="card" style="margin-bottom: 14px">
+          <canvas class="view view--wide" id="v-track"></canvas>
+          <div class="card__body">
+            <span class="role">Module · 12 m</span>
+            <h3>Temple causeway</h3>
+            <p>
+              Lane slabs alternate two limestone tones every 2.86m and a cinnabar glyph band crosses each joint — that
+              banding is what gives the speed read at 20 m/s that a flat floor loses. Everything above 3m is decoration
+              and gets culled first on low-end devices.
+            </p>
+          </div>
+        </div>
+        <div class="grid g2">
+          <dl class="spec">
+            <div><dt>Biome 1 — Causeway<small>Limestone, jade canopy, copal smoke. 0–1500m.</small></dt><dd>0 m</dd></div>
+            <div><dt>Biome 2 — Cenote<small>Flooded sinkhole; wet slabs with a mirrored plane, cooler key, boulders throw spray.</small></dt><dd>1500 m</dd></div>
+            <div><dt>Biome 3 — The furnace<small>Obsidian and ember light; Kukulkán's eyes stop being the brightest thing on screen.</small></dt><dd>3500 m</dd></div>
+          </dl>
+          <dl class="spec">
+            <div><dt>Draw calls / frame<small>Materials are shared across every module, so the track is a handful of batches.</small></dt><dd>≤ 90</dd></div>
+            <div><dt>Triangles on screen<small>Budget for a 2019 mid-range Android at 60fps.</small></dt><dd>≤ 45 k</dd></div>
+            <div><dt>Shadow map<small>One directional light, 1024², frustum tightened to 20×24m around the runner.</small></dt><dd>1024²</dd></div>
+            <div><dt>Device pixel ratio<small>Capped; flat shading survives downsampling better than texture work.</small></dt><dd>≤ 2.0</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec">
+          <div class="eyebrow">Concept 05 — the look</div>
+          <h2>Just under premium</h2>
+          <p class="lede">
+            The Kenney read comes from restraint: matte flat-shaded facets, no specular, no normal maps, and a palette
+            that stays inside weathered limestone plus painted stucco. The premium half is entirely lighting, tone
+            mapping and timing.
+          </p>
+        </div>
+        <div class="swatches">
+          <figure><i style="background: #e7dcc4"></i><figcaption><b>#E7DCC4</b>sacbé light</figcaption></figure>
+          <figure><i style="background: #d2c3a3"></i><figcaption><b>#D2C3A3</b>sacbé dark</figcaption></figure>
+          <figure><i style="background: #b5432e"></i><figcaption><b>#B5432E</b>cinnabar</figcaption></figure>
+          <figure><i style="background: #2fa98c"></i><figcaption><b>#2FA98C</b>jade</figcaption></figure>
+          <figure><i style="background: #3fbfd4"></i><figcaption><b>#3FBFD4</b>turquoise</figcaption></figure>
+          <figure><i style="background: #241f2b"></i><figcaption><b>#241F2B</b>obsidian</figcaption></figure>
+          <figure><i style="background: #f2c14e"></i><figcaption><b>#F2C14E</b>gold · reward</figcaption></figure>
+          <figure><i style="background: #e05437"></i><figcaption><b>#E05437</b>hazard · grind</figcaption></figure>
+          <figure><i style="background: #3e8c57"></i><figcaption><b>#3E8C57</b>canopy</figcaption></figure>
+        </div>
+        <div class="grid g2">
+          <dl class="spec">
+            <div><dt>Material<small>MeshLambertMaterial, flatShading on. No metalness, no roughness maps, no PBR cost.</small></dt><dd>Lambert</dd></div>
+            <div><dt>Light rig<small>Hemisphere #CFE4E0 over #5A4A32 at 0.9, warm key 1.45 from behind-left, jade rim at 0.55.</small></dt><dd>3 lights</dd></div>
+            <div><dt>Tone map<small>ACES Filmic at 1.06 exposure — the biggest single step up from "hobby WebGL".</small></dt><dd>ACES</dd></div>
+            <div><dt>Fog<small>FogExp2 at 0.0145, tinted to the jungle haze, hiding the recycle seam and softening the pyramids.</small></dt><dd>0.0145</dd></div>
+          </dl>
+          <dl class="spec">
+            <div><dt>Silhouette rule<small>Every actor must be identifiable as a black shape at 40px. Test each model as a flat fill.</small></dt><dd>40 px</dd></div>
+            <div><dt>Emissive budget<small>Braziers, coins, idol. Nothing else glows, so glow always means "go and get it".</small></dt><dd>3 uses</dd></div>
+            <div><dt>Post<small>Vignette and grit are CSS layers over the canvas — zero GPU passes, instant on mobile.</small></dt><dd>CSS only</dd></div>
+            <div><dt>Camera<small>55° vertical FOV at (0, 4.6, 10.0) looking 6m ahead. Portrait crops the sides, never the read.</small></dt><dd>9:16</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec">
+          <div class="eyebrow">Concept 06 — the hand</div>
+          <h2>One thumb, portrait, no buttons</h2>
+          <p class="lede">
+            On a phone the whole control surface is the screen. Nothing interactive sits in the bottom 12% — that is
+            where the thumb rests and where the home indicator lives.
+          </p>
+        </div>
+        <div class="grid g2">
+          <ol class="beats">
+            <li><div><h3>Swipe ← / → : switch lane</h3><p>Fires the moment the swipe passes 28px rather than on release — at 20 m/s, waiting for pointerup is a hit. The origin resets after each one, so a long drag crosses two lanes.</p></div></li>
+            <li><div><h3>Tap : crack the whip</h3><p>Anywhere, 0.30s cooldown, no aim. It reaches your own lane only, which keeps the decision about <em>when</em>.</p></div></li>
+            <li><div><h3>Haptics carry the grind</h3><p>A short tick per HP segment lost, escalating. On a tablet without haptics the frame edge pulses instead.</p></div></li>
+            <li><div><h3>Landscape is the same game</h3><p>Tablet and desktop get the identical 9:16 column, pillarboxed, with the stats card and the ◀ / whip / ▶ footer. The lanes never widen.</p></div></li>
+          </ol>
+          <dl class="spec">
+            <div><dt>Safe area<small>HUD clears the notch and the home indicator with env() insets in both orientations.</small></dt><dd>env()</dd></div>
+            <div><dt>Top HUD height<small>Ribbon, health, coins and distance. Everything else is in the world.</small></dt><dd>64 px</dd></div>
+            <div><dt>HUD refresh<small>The sim runs at 60fps; React re-renders the HUD 12 times a second.</small></dt><dd>12 Hz</dd></div>
+            <div><dt>First session<small>Boulders hold back for the first 3s and claim one lane at a time until 260m.</small></dt><dd>soft start</dd></div>
+          </dl>
+        </div>
+        <div class="cta">
+          <a class="btn" href="./index.html">▶ Play the build</a>
+          <span class="note">Portrait, touch or arrow keys, no install.</span>
+        </div>
+      </section>
+
+      <footer class="foot">
+        Professor WhipDash — art &amp; systems bible. Geometry, animation and lighting authored in three.js primitives;
+        every panel on this page shares one WebGL context with the game engine.
+      </footer>
+    </div>
+
+    <script type="module" src="/src/board/board.ts"></script>
+  </body>
+</html>

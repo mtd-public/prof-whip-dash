@@ -1,0 +1,606 @@
+/* Professor WhipDash — one committed dark world, so the shell around the
+   board matches the board instead of framing it in white. */
+
+:root {
+  --ink: #101815;
+  --panel: #18221f;
+  --raise: #202c28;
+  --line: #2c3a36;
+  --text: #ece9df;
+  --muted: #94a49c;
+  --dim: #6a7a72;
+
+  --gold: #f2c14e;
+  --gold-deep: #c08a22;
+  --jade: #2fa98c;
+  --hazard: #e05437;
+  --amber: #e8a13c;
+
+  --font-display: 'Anton', 'Public Sans', Impact, sans-serif;
+  --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Topbar ---------- */
+.topbar,
+.footer-bar {
+  flex: none;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  padding-top: calc(9px + env(safe-area-inset-top, 0px));
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.wordmark span {
+  color: var(--gold);
+}
+
+.topbar__stats {
+  display: none;
+}
+
+.topbar__stat {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat__label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 8px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--raise);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: #2a3833;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.btn--primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #17110a;
+  font-weight: 500;
+}
+
+.btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--gold);
+}
+
+.btn--ghost {
+  background: transparent;
+}
+
+/* ---------- Keyboard help ---------- */
+.help {
+  position: relative;
+}
+
+.help__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  min-width: 210px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px -20px #000;
+}
+
+.help__panel div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.help__panel kbd {
+  flex: none;
+  min-width: 74px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--raise);
+  color: var(--text);
+}
+
+/* ---------- Layout ----------
+   The topbar and footer keep their measured height; the board is the only
+   thing that flexes, and min-height:0 lets it shrink rather than push the
+   footer past the bottom of the window. */
+.layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-shell {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #0a0f0e;
+  /* Swipes drive the lanes here — don't let the browser scroll or zoom. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.board-shell__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(118% 76% at 50% 32%, transparent 42%, rgba(6, 12, 10, 0.66) 100%);
+}
+
+/* ---------- HUD ---------- */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud__top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px 0;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+}
+
+.ribbon {
+  display: flex;
+  gap: 5px;
+  height: 7px;
+}
+
+.pip {
+  flex: 1;
+  border-radius: 3px;
+  background: var(--jade);
+  box-shadow: 0 0 12px -3px var(--jade);
+  transition: background 0.12s linear, box-shadow 0.12s linear;
+}
+
+.pip[data-state='committing'] {
+  background: var(--amber);
+  box-shadow: 0 0 12px -3px var(--amber);
+}
+
+.pip[data-state='claimed'] {
+  background: var(--hazard);
+  box-shadow: 0 0 16px -2px var(--hazard);
+}
+
+.health {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  padding: 2px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.health i {
+  flex: 1;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #ffd06a, var(--gold));
+}
+
+.health i.spent {
+  opacity: 0.12;
+  background: #fff;
+}
+
+.health--low i:not(.spent) {
+  background: linear-gradient(180deg, #ff8a6a, var(--hazard));
+}
+
+.readout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 1px 4px #000;
+}
+
+.readout b {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+.readout__coins b {
+  font-size: 13px;
+}
+
+.multiplier {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #2a0d07;
+  background: var(--hazard);
+  box-shadow: 0 0 18px -4px var(--hazard);
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--gold);
+  text-shadow: 0 3px 0 #7a4a12, 0 0 26px rgba(242, 193, 78, 0.55);
+}
+
+.toast--hazard {
+  color: #ff8367;
+  text-shadow: 0 3px 0 #6d1d0f, 0 0 26px rgba(224, 84, 55, 0.55);
+}
+
+.toast--jade {
+  color: #6fe0c0;
+  text-shadow: 0 3px 0 #0d4f3f, 0 0 26px rgba(47, 169, 140, 0.5);
+}
+
+/* Dust and grit at the bottom edge: the boulders are behind the camera, so
+   this is peripheral evidence that one is on you. */
+.grit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46%;
+  pointer-events: none;
+  transition: opacity 0.2s linear;
+  background: linear-gradient(0deg, rgba(224, 84, 55, 0.5), rgba(216, 185, 140, 0.14) 45%, transparent 78%);
+}
+
+/* ---------- Overlay ---------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 14, 12, 0.58);
+  backdrop-filter: blur(3px);
+}
+
+.overlay__card {
+  width: min(340px, 100%);
+  padding: 22px 20px;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 30px 70px -30px #000;
+}
+
+.overlay__card h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(26px, 8vw, 34px);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.overlay__card h2 em {
+  display: block;
+  font-style: normal;
+  color: var(--gold);
+}
+
+.overlay__card p {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.keys {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 16px;
+  text-align: left;
+}
+
+.keys div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.keys dt {
+  flex: none;
+  min-width: 96px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  padding: 5px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--raise);
+}
+
+.keys dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.scoreline {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin-bottom: 14px;
+}
+
+.scoreline div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scoreline span {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.scoreline b {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreline b.gold {
+  color: var(--gold);
+}
+
+/* ---------- Stats sidebar (landscape and desktop only) ---------- */
+.stats {
+  display: none;
+  width: 212px;
+  flex: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stats__section {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 13px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.stat__value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat__value--best {
+  color: var(--gold);
+}
+
+.stats__note {
+  padding: 12px 13px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.stats__note h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.stats__note p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ---------- Footer controls ---------- */
+.footer-bar {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+
+.btn--footer-side {
+  min-width: 64px;
+  font-size: 14px;
+}
+
+.btn--whip {
+  min-width: 170px;
+}
+
+/* ---------- Wide layout: desktop and tablet landscape ----------
+   Gated on pointer:fine for desktop, or pointer:coarse + landscape for a
+   tablet — a touch tablet in landscape is easily wider than 880px, so width
+   alone can't tell it apart from a desktop. */
+@media (pointer: fine) and (min-width: 880px), (pointer: coarse) and (orientation: landscape) and (min-width: 840px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 212px;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: center;
+    justify-items: center;
+    gap: 16px;
+    padding: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Height-driven, not width-driven: the board takes the row it is given and
+     derives its width from the aspect ratio, so a short window shrinks the
+     board instead of pushing the footer out of view. */
+  .board-shell {
+    grid-column: 1;
+    grid-row: 1;
+    flex: none;
+    aspect-ratio: 9 / 19.5;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 24px 60px -28px #000;
+  }
+
+  .hud__top {
+    padding-top: 12px;
+  }
+
+  .stats {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    justify-self: stretch;
+    display: flex;
+  }
+
+  .footer-bar {
+    display: flex;
+  }
+
+  .topbar__stats {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

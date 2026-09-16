@@ -1,13 +1,12 @@
 # Professor WhipDash — design concepts v0.1
 
 A three-lane endless runner for portrait phones and tablets. A fedora'd
-academic outruns a rockslide down a collapsing temple causeway. The boulders
-are **behind** him; the vermin are **in front** of him; the whip is the only
-answer to the second problem and lane position is the only answer to the
-first.
+academic outruns a rockslide down a **sacbé** — the white limestone causeway
+of a Mayan city. The boulders are **behind** him; the vermin are **in front**
+of him; the gold is in whichever lane is currently trying to kill him.
 
-Live concept board (every model rendered from three.js primitives in the
-browser): `web/index.html` · Playable vertical slice: `web/play.html`
+Live art bible (every model rendered from three.js primitives in the browser):
+`board.html` · The game: `index.html` · Both build from `src/game/`.
 
 ---
 
@@ -22,6 +21,10 @@ browser): `web/index.html` · Playable vertical slice: `web/play.html`
    2–5m ahead **in your own lane only**, so the decision is *when*, not *where*.
 5. A vermin hit costs 12 HP and a 0.6s stumble — and the real price is that
    the boulders close 4m while you're slow.
+6. **70% of coin runs spawn in a lane a boulder owns or is about to own**, and
+   the payout multiplier is 1 in a clear lane, 2 while contested, 3 while
+   being ground. The whole game is one question: how long can you stay in the
+   red lane?
 
 ## 2. The core problem: the threat is behind the camera
 
@@ -50,18 +53,23 @@ without ever turning the camera around:
 | Lane switch | 0.16s | Dodge on reaction; panic-tapping overshoots |
 | Run speed | 11 → 21 m/s, +0.35 per 100m | Boulders hold 1.04× player speed while claiming |
 | Boulder stand-off | 2.4m grinding / 11.5m holding | Holding boulders sit behind the camera and *roll into frame* when they commit |
+| Coin run | 4–8 coins, 2.2m apart, one lane | 70% threaded through the dangerous lane |
+| Coin value | 1 × multiplier | Multiplier is 1 / 2 / 3 by lane state |
+| Jade idol | 25 × multiplier, every 16–26s | Always spawns in the dangerous lane |
+| Score | coins × 10 + metres | Coins are the skill expression; distance is the participation trophy |
 
 ## 4. The cast
 
 | Actor | Behaviour |
 | --- | --- |
 | **Professor WhipDash** | 1.8m. Fedora (brim oversized to 0.88m for the silhouette test), goggles on the brim, field vest, satchel, 9-segment whip. |
-| **Grindstone** | Picks one lane and stays. Never accelerates, never leaves. The metronome of the chase. |
-| **The Tumbler** | Mossy, lopsided, drifts one lane every 3–5s. Wobble + amber pip before it commits. |
-| **The Idol** | Carved face, gold band, red eyes. Holds two lanes back, then lunges a full lane in 0.5s. Eyes flare on the wind-up. |
+| **Limestone block** | Picks one lane and stays. Never accelerates, never leaves. The metronome of the chase. |
+| **The overgrown** | Mossy, vine-trailed, lopsided. Drifts one lane every 3–5s; wobble + amber pip before it commits. |
+| **Kukulkán** | A feathered-serpent mask carved into the leading face: cinnabar plaster, obsidian eyes, jade plumes. Holds back, then lunges a full lane in 0.5s. |
 | **Cave spider** | Drops into your lane on a thread. Violet dorsal flash = whippable. |
-| **Scarab** | Trundles across lanes at ankle height; the gold horn is the aim point. |
-| **Relic shard** | The only emissive pickup on the track. Three shards = +12 HP. |
+| **Jade scarab** | Trundles across lanes at ankle height; the gold horn is the aim point. |
+| **Glyph coin** | Faintly emissive, so a run reads as a line of light through the dangerous lane. |
+| **Jade idol** | Plumed headdress, obsidian eyes, cinnabar plinth. Only ever spawns in the lane that hurts. |
 
 ## 5. Art direction — "just under premium"
 
@@ -76,7 +84,10 @@ tone mapping and timing.
   rim 0.5.
 - **Tone map**: ACES Filmic at 1.05 exposure — the single biggest step up
   from "hobby WebGL".
-- **Fog**: `FogExp2` tinted to the biome sky, hiding the module recycle seam.
+- **Sky**: one unlit gradient dome, no fog, one draw call — the difference
+  between "a scene" and "a void above a road".
+- **Fog**: `FogExp2` at 0.011 in a pale jungle haze, so distance fades into
+  humidity rather than to black, and it hides the module recycle seam.
 - **Post**: vignette and dust are CSS layers over the canvas. Zero GPU passes.
 - **Silhouette rule**: every actor must be identifiable as a black shape at
   40px tall.
@@ -87,9 +98,11 @@ tone mapping and timing.
 
 | Hex | Role |
 | --- | --- |
-| `#D8B98C` / `#C6A476` | Slab light / slab dark (alternating at 2.86m gives the speed read) |
-| `#4E9A62` / `#2F6B4A` | Canopy / deep leaf |
-| `#8F8880` | Granite |
+| `#E7DCC4` / `#D2C3A3` | Sacbé light / dark (alternating at 2.86m gives the speed read) |
+| `#B5432E` | Cinnabar — painted glyph bands, serpent banding, stela caps |
+| `#2FA98C` / `#3FBFD4` | Jade / turquoise — inlay, plumes, scarab shell |
+| `#241F2B` | Obsidian — eyes, jaw lines |
+| `#3E8C57` / `#23573C` | Canopy / deep leaf |
 | `#C09A63` | Fedora |
 | `#F0BC48` | Gold — reward |
 | `#E05437` | Hazard — grinding |
@@ -101,6 +114,9 @@ tone mapping and timing.
   pillarboxed — the lanes never widen.
 - Camera: 55° vertical FOV at (0, 4.6, 10.0), looking 6m ahead. Portrait crops
   the sides, never the read.
+- Lane changes fire the moment a swipe passes 28px rather than on release — at
+  20 m/s, waiting for pointerup is a hit — and the origin resets after each
+  one, so a long drag crosses two lanes.
 - Swipe ←/→ to change lane (28px threshold, 120ms input buffer). Tap anywhere
   to crack the whip (0.30s cooldown). Swipe ↓ to slide (reserved).
 - No interactive UI in the bottom 12% — that's where the thumb and the home
@@ -140,8 +156,11 @@ tone mapping and timing.
 
 ## 10. Open questions
 
-- Does the second claimed lane (from 700m) arrive too early? It halves the
-  decision space and may want to be a 1200m threshold.
+- Does the second claimed lane (from 900m) arrive too early? It halves the
+  decision space and may want a 1200m threshold.
+- Is ×3 enough to make players *want* the red lane, or does the 18 HP/s drain
+  dominate? The two numbers are the whole economy and want playtesting
+  together, not separately.
 - Slide is built into the input layer but has no obstacle yet — low vine
   arches are the obvious candidate, but they compete with the vermin for the
   player's forward attention.
