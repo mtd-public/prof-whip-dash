@@ -39,15 +39,20 @@ export interface CameraRig {
   follow: number
 }
 
+/**
+ * The overhead diagonal, dialled in on the camera study page. `follow: 0`
+ * means the camera is locked: the runner moves across the frame when he
+ * changes lane instead of the world sliding under a centred runner.
+ */
 export const CHASE_RIG: CameraRig = {
-  height: 4.6,
-  back: 10,
-  side: 0,
-  lookAhead: -6,
-  lookSide: 0,
-  lookHeight: 1.35,
-  fov: 55,
-  follow: 0.34,
+  height: 16,
+  back: 18,
+  side: 8,
+  lookAhead: -12.5,
+  lookSide: -2,
+  lookHeight: -0.1,
+  fov: 43,
+  follow: 0,
 }
 
 function mod(n: number, m: number) {
@@ -69,6 +74,8 @@ export class Scene3D {
   private idols: THREE.Group[] = []
   private scroll = 0
   private attractX = 0
+  /** Last frame's boulder z, so roll rate can follow true ground speed. */
+  private boulderZ = [0, 0, 0]
   private rig: CameraRig = { ...CHASE_RIG }
 
   constructor(canvas: HTMLCanvasElement) {
@@ -195,14 +202,20 @@ export class Scene3D {
     this.boulders.forEach((b, i) => {
       const data = playing ? world.boulders[i] : null
       const z = data ? data.z : i === 0 ? TUNING.grindZ + 1.2 : TUNING.idleZ
-      b.position.z += (z - b.position.z) * Math.min(1, dt * 12)
+      // While rolling away it is moving fast down its lane, so track it
+      // exactly instead of easing — the lag would read as sliding.
+      if (data && data.despawning > 0) b.position.z = z
+      else b.position.z += (z - b.position.z) * Math.min(1, dt * 12)
       b.position.x += (LANE_X[i] - b.position.x) * Math.min(1, dt * 3)
       b.position.y = 1.25 + Math.sin(t * 9 + i) * 0.04
-      b.rotation.x -= (speed / 1.25) * dt
-      // Its five seconds are up: sink and shrink as it rolls out of shot.
-      const out = data ? Math.min(1, data.despawning / TUNING.despawnTime) : 0
-      b.scale.setScalar(1.12 * (1 - out * 0.65))
-      b.position.y -= out * 0.9
+      b.scale.setScalar(1.12)
+
+      // Roll rate follows the block's own speed over the slabs: the world
+      // slides toward the camera at `speed`, and its own z drift subtracts
+      // from that, so a boulder dropping back visibly slows its spin.
+      const drift = dt > 0 ? (b.position.z - this.boulderZ[i]) / dt : 0
+      this.boulderZ[i] = b.position.z
+      b.rotation.x -= (Math.max(0, speed - drift) / 1.25) * dt
     })
 
     // --- pooled actors ---------------------------------------------------

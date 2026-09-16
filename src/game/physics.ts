@@ -34,8 +34,10 @@ export const TUNING = {
   boulderLife: 5,
   /** Quiet time after a despawn before that lane can be claimed again. */
   boulderCooldown: 1.5,
-  /** Seconds of the retreat animation after its life runs out. */
-  despawnTime: 0.45,
+  /** Seconds the roll-away takes once its life runs out. */
+  despawnTime: 1.1,
+  /** Where a retreating boulder rolls to — well behind the camera. */
+  despawnZ: 26,
 
   coinValue: 1,
   idolValue: 25,
@@ -50,6 +52,8 @@ export interface Boulder {
   age: number
   /** Counts up through the roll-away once its life runs out. */
   despawning: number
+  /** Where the roll-away started, so the easing has something to lerp from. */
+  despawnFrom: number
   /** Seconds until this lane may be claimed again. */
   cooldown: number
 }
@@ -137,9 +141,9 @@ export function createWorld(): World {
     combo: 0,
     multiplier: 1,
     boulders: [
-      { lane: 0, z: TUNING.idleZ, age: -1, despawning: 0, cooldown: 0 },
-      { lane: 1, z: TUNING.idleZ, age: -1, despawning: 0, cooldown: 0 },
-      { lane: 2, z: TUNING.idleZ, age: -1, despawning: 0, cooldown: 0 },
+      { lane: 0, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, cooldown: 0 },
+      { lane: 1, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, cooldown: 0 },
+      { lane: 2, z: TUNING.idleZ, age: -1, despawning: 0, despawnFrom: 0, cooldown: 0 },
     ],
     critters: [],
     pickups: [],
@@ -277,9 +281,11 @@ export function step(w: World, dt: number) {
     b.cooldown = Math.max(0, b.cooldown - dt)
 
     if (b.despawning > 0) {
-      // Rolling away: it accelerates backwards out of shot, then resets.
+      // It loses the chase and rolls back down its own lane, accelerating
+      // away until it is past the camera — never sideways, never in place.
       b.despawning += dt
-      b.z += (TUNING.idleZ + 6 - b.z) * Math.min(1, dt * 4)
+      const k = Math.min(1, b.despawning / TUNING.despawnTime)
+      b.z = b.despawnFrom + (TUNING.despawnZ - b.despawnFrom) * k * k
       if (b.despawning >= TUNING.despawnTime) {
         b.despawning = 0
         b.z = TUNING.idleZ
@@ -294,6 +300,7 @@ export function step(w: World, dt: number) {
         // Five seconds is all it gets: release the lane and roll away.
         b.age = -1
         b.despawning = 0.001
+        b.despawnFrom = b.z
         b.cooldown = TUNING.boulderCooldown
         w.pattern[i] = 0
         if (w.nextPattern[i] === 2) w.nextPattern[i] = 0

@@ -16,9 +16,9 @@ interface Preset {
 const PRESETS: Preset[] = [
   {
     id: 'chase',
-    name: 'Chase',
-    note: 'What ships today. Boulders stay behind the lens until they claim.',
-    rig: { ...CHASE_RIG },
+    name: 'Chase (old)',
+    note: 'The original straight-on chase. Boulders stay behind the lens until they claim.',
+    rig: { height: 4.6, back: 10, side: 0, lookAhead: -6, lookSide: 0, lookHeight: 1.35, fov: 55, follow: 0.34 },
   },
   {
     id: 'raised',
@@ -28,9 +28,9 @@ const PRESETS: Preset[] = [
   },
   {
     id: 'diagonal',
-    name: 'Overhead diagonal',
-    note: 'The causeway runs corner to corner. All three boulders visible at rest.',
-    rig: { height: 9.5, back: 10, side: 6, lookAhead: -9, lookSide: -2, lookHeight: 0.6, fov: 46, follow: 0.2 },
+    name: 'Overhead diagonal — shipping',
+    note: 'The rig the build now uses: locked camera, causeway corner to corner.',
+    rig: { ...CHASE_RIG },
   },
   {
     id: 'iso',
