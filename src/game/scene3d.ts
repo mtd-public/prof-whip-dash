@@ -8,12 +8,52 @@ import { PAL } from './palette'
 import { LANE_X, TUNING, type World } from './physics'
 import type { GamePhase } from './types'
 
-const SEG_N = 6
+const SEG_N = 8
 const SPAN = K.SEGMENT_LEN * SEG_N
+/** How far the recycled strip reaches behind the runner. */
+const BEHIND = 26
 const PYRAMID_N = 3
 const PYRAMID_SPAN = 180
 
-const CAM = new THREE.Vector3(0, 4.6, 10)
+/**
+ * Where the camera sits relative to the runner. `side` is what turns the
+ * straight-on chase into an overhead diagonal: push the camera off the centre
+ * line while it keeps looking down the track.
+ */
+export interface CameraRig {
+  /** Metres above the slabs. */
+  height: number
+  /** Metres behind the runner. */
+  back: number
+  /** Metres to the right of the centre line. */
+  side: number
+  /** Look-at point, metres ahead of the runner (negative = ahead). */
+  lookAhead: number
+  /** Look-at point sideways. An off-axis camera needs this to frame the
+   *  runner — without it he drifts to the edge as `side` grows. */
+  lookSide: number
+  /** Height of the look-at point. */
+  lookHeight: number
+  fov: number
+  /** How much of the runner's lane offset the camera follows, 0–1. */
+  follow: number
+}
+
+/**
+ * The overhead diagonal, dialled in on the camera study page. `follow: 0`
+ * means the camera is locked: the runner moves across the frame when he
+ * changes lane instead of the world sliding under a centred runner.
+ */
+export const CHASE_RIG: CameraRig = {
+  height: 16,
+  back: 18,
+  side: 8,
+  lookAhead: -12.5,
+  lookSide: -2,
+  lookHeight: -0.1,
+  fov: 43,
+  follow: 0,
+}
 
 function mod(n: number, m: number) {
   return ((n % m) + m) % m
@@ -34,6 +74,9 @@ export class Scene3D {
   private idols: THREE.Group[] = []
   private scroll = 0
   private attractX = 0
+  /** Last frame's boulder z, so roll rate can follow true ground speed. */
+  private boulderZ = [0, 0, 0]
+  private rig: CameraRig = { ...CHASE_RIG }
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
@@ -103,6 +146,19 @@ export class Scene3D {
     stock(K.makeIdol, 3, 1.15, this.idols)
   }
 
+  /** Swap the camera rig. Used by the camera study page and by presets. */
+  setRig(rig: Partial<CameraRig>) {
+    this.rig = { ...this.rig, ...rig }
+    if (this.camera.fov !== this.rig.fov) {
+      this.camera.fov = this.rig.fov
+      this.camera.updateProjectionMatrix()
+    }
+  }
+
+  getRig(): CameraRig {
+    return { ...this.rig }
+  }
+
   resize(w: number, h: number) {
     if (!w || !h) return
     this.renderer.setSize(w, h, false)
@@ -114,7 +170,7 @@ export class Scene3D {
   private scrollTrack(distance: number) {
     this.scroll += distance
     this.segments.forEach((seg, i) => {
-      seg.position.z = mod(this.scroll + i * K.SEGMENT_LEN, SPAN) - (SPAN - 14)
+      seg.position.z = mod(this.scroll + i * K.SEGMENT_LEN, SPAN) - (SPAN - BEHIND)
     })
     this.pyramids.forEach((p, i) => {
       p.position.z = mod(this.scroll * 0.8 + i * (PYRAMID_SPAN / PYRAMID_N), PYRAMID_SPAN) - (PYRAMID_SPAN - 20)
@@ -144,11 +200,27 @@ export class Scene3D {
 
     // --- boulders --------------------------------------------------------
     this.boulders.forEach((b, i) => {
-      const z = playing ? world.boulders[i].z : i === 0 ? TUNING.grindZ + 1.2 : TUNING.idleZ
-      b.position.z += (z - b.position.z) * Math.min(1, dt * 12)
-      b.position.x += (LANE_X[i] - b.position.x) * Math.min(1, dt * 3)
+      const data = playing ? world.boulders[i] : null
+      const z = data ? data.z : i === 0 ? TUNING.grindZ + 1.2 : TUNING.idleZ
+      // While rolling away it is moving fast down its lane, so track it
+      // exactly instead of easing — the lag would read as sliding.
+      const x = LANE_X[i] + (data ? data.offsetX : 0)
+      if (data && data.despawning > 0) {
+        b.position.z = z
+        b.position.x = x
+      } else {
+        b.position.z += (z - b.position.z) * Math.min(1, dt * 12)
+        b.position.x += (x - b.position.x) * Math.min(1, dt * 3)
+      }
       b.position.y = 1.25 + Math.sin(t * 9 + i) * 0.04
-      b.rotation.x -= (speed / 1.25) * dt
+      b.scale.setScalar(1.12)
+
+      // Roll rate follows the block's own speed over the slabs: the world
+      // slides toward the camera at `speed`, and its own z drift subtracts
+      // from that, so a boulder dropping back visibly slows its spin.
+      const drift = dt > 0 ? (b.position.z - this.boulderZ[i]) / dt : 0
+      this.boulderZ[i] = b.position.z
+      b.rotation.x -= (Math.max(0, speed - drift) / 1.25) * dt
     })
 
     // --- pooled actors ---------------------------------------------------
@@ -208,12 +280,13 @@ export class Scene3D {
 
     // --- camera ----------------------------------------------------------
     const shake = playing ? world.shake : 0
+    const rig = this.rig
     this.camera.position.set(
-      CAM.x + laneX * 0.34 + (Math.random() - 0.5) * shake,
-      CAM.y + (Math.random() - 0.5) * shake,
-      CAM.z,
+      rig.side + laneX * rig.follow + (Math.random() - 0.5) * shake,
+      rig.height + (Math.random() - 0.5) * shake,
+      rig.back,
     )
-    this.camera.lookAt(laneX * 0.5, 1.35, -6)
+    this.camera.lookAt(rig.lookSide + laneX * rig.follow * 0.5, rig.lookHeight, rig.lookAhead)
 
     // Key light sits behind the runner so boulders throw their shadows
     // forward, up the lane he is about to run through.

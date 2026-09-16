@@ -16,7 +16,10 @@ Live art bible (every model rendered from three.js primitives in the browser):
 2. Boulders behind you claim lanes in **rows**. At least one lane in a row is
    always clear — the game is finding it, not reacting to a coin flip.
 3. Sharing a lane with a claiming boulder does not kill you, it **grinds**:
-   a continuous HP drain that only stops when you reach a clear lane.
+   a continuous HP drain that only stops when you reach a clear lane. No
+   boulder holds a lane for more than **5 seconds** — then it breaks away,
+   overtakes the runner and rolls off down the causeway ahead of him, and that
+   lane cools down for 2s before it can be claimed again.
 4. Spiders and scarabs sit in front of you. Tap to crack the whip; it reaches
    2–5m ahead **in your own lane only**, so the decision is *when*, not *where*.
 5. A vermin hit costs 12 HP and a 0.6s stumble — and the real price is that
@@ -26,18 +29,21 @@ Live art bible (every model rendered from three.js primitives in the browser):
    being ground. The whole game is one question: how long can you stay in the
    red lane?
 
-## 2. The core problem: the threat is behind the camera
+## 2. The core problem: reading the threat
 
-A chase camera looks forward. If the player can't read which lanes are
-claimed, every hit feels unfair. Four devices put the rear threat on screen
-without ever turning the camera around:
+Under the original chase camera the boulders sat *behind the lens* entirely,
+and these four devices existed to put them on screen. The overhead diagonal
+changes the balance: all three lanes and the blocks holding them are now in
+frame, so the ribbon confirms what you can already see rather than being the
+only source of truth. It stays — a red pip is faster to read at 20 m/s than a
+silhouette — but it is no longer load-bearing.
 
 | Device | What it does |
 | --- | --- |
 | **Lane ribbon** | Three pips across the top, welded to the lanes below. Jade = clear, amber = a boulder is committing (1.2s telegraph), red = claimed and grinding. The only pure-UI element in the game, and the one you actually play off. |
 | **Shadows arriving first** | The key light sits behind the runner, so each boulder throws a long shadow *past* him onto the slabs ahead. Shadow width reads as distance. |
 | **Dust at the frame edge** | A bottom vignette of ochre grit, tinted red and tightened as the nearest claiming boulder closes. Peripheral, never blocking. |
-| **The shoulder glance** | Every ~20s, or on the first frame of a grind, the camera dips and rolls 12° for 0.4s. A flourish with a job: it re-establishes the geography for free. |
+| **The shoulder glance** | Not built, and the overhead diagonal may have made it unnecessary — the geography is permanently on screen now. |
 
 ## 3. Numbers
 
@@ -52,7 +58,10 @@ without ever turning the camera around:
 | Perfect crack | target 3.0–3.8m | +1 combo, +8% speed for 2s, relics double |
 | Lane switch | 0.16s | Dodge on reaction; panic-tapping overshoots |
 | Run speed | 11 → 21 m/s, +0.35 per 100m | Boulders hold 1.04× player speed while claiming |
-| Boulder stand-off | 2.4m grinding / 11.5m holding | Holding boulders sit behind the camera and *roll into frame* when they commit |
+| Boulder stand-off | 2.4m grinding / 11.5m holding | Holding boulders sit back up the causeway; a claim brings one down onto your heels |
+| Boulder lifetime | 5s, then a 1.6s roll-away | Nothing grinds you forever; it accelerates past you and away up the track, never fading in place |
+| Despawn swerve | 2.4m, over a 5m window | It swings wide to overtake rather than rolling through the runner — 0.36m of clearance at the pass |
+| Lane cooldown | 2s after a despawn | Longer than the roll-away, so a lane is never re-claimed while its block is still in flight. A guard stops all three cooling at once |
 | Coin run | 4–8 coins, 2.2m apart, one lane | 70% threaded through the dangerous lane |
 | Coin value | 1 × multiplier | Multiplier is 1 / 2 / 3 by lane state |
 | Jade idol | 25 × multiplier, every 16–26s | Always spawns in the dangerous lane |
@@ -112,8 +121,9 @@ tone mapping and timing.
 
 - 9:16 play column at every size. Tablets and landscape get the same column,
   pillarboxed — the lanes never widen.
-- Camera: 55° vertical FOV at (0, 4.6, 10.0), looking 6m ahead. Portrait crops
-  the sides, never the read.
+- Camera: overhead diagonal — 43° FOV, 16m up, 18m back, 8m to the side,
+  looking 12.5m ahead. Locked laterally, so lane changes move the runner
+  across the frame. Tune it on `camera.html`, which prints the rig to paste.
 - Lane changes fire the moment a swipe passes 28px rather than on release — at
   20 m/s, waiting for pointerup is a hit — and the origin resets after each
   one, so a long drag crosses two lanes.
@@ -161,6 +171,12 @@ tone mapping and timing.
 - Is ×3 enough to make players *want* the red lane, or does the 18 HP/s drain
   dominate? The two numbers are the whole economy and want playtesting
   together, not separately.
+- The 5s boulder life caps the worst case at 90 HP of grind — just under a
+  full bar. Deliberate, but it means a player who ignores the ribbon entirely
+  survives one full claim and no more.
+- With a locked camera, a lane change moves the runner diagonally across the
+  frame rather than horizontally. It reads fine at this offset; it would not
+  at a much larger one.
 - Slide is built into the input layer but has no obstacle yet — low vine
   arches are the obvious candidate, but they compete with the vermin for the
   player's forward attention.

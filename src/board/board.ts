@@ -10,8 +10,8 @@
  */
 import * as THREE from 'three'
 import * as K from '../game/kit'
-import { Scene3D } from '../game/scene3d'
-import { createWorld, moveLane, step, whip, TUNING, LANE_X } from '../game/physics'
+import { LANE_X } from '../game/physics'
+import { createDemo } from './demoRun'
 import './board.css'
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -19,39 +19,7 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
 /* ----------------------------------------------------------- hero: the game */
 function bootHero() {
   const canvas = document.getElementById('v-hero') as HTMLCanvasElement | null
-  if (!canvas) return
-  const scene = new Scene3D(canvas)
-  const world = createWorld()
-  const parent = canvas.parentElement!
-  const resize = () => scene.resize(parent.clientWidth, parent.clientHeight)
-  resize()
-  new ResizeObserver(resize).observe(parent)
-
-  let last = performance.now()
-  const frame = (now: number) => {
-    const dt = Math.min((now - last) / 1000, 1 / 30)
-    last = now
-
-    // Autopilot: leave a grinding lane for the cheapest clear one, take the
-    // coins that are reachable, crack anything in whip range.
-    if (world.pattern[world.lane] === 2) {
-      const safe = [0, 1, 2].filter((l) => world.pattern[l] !== 2)
-      const to = safe.sort((a, b) => Math.abs(a - world.lane) - Math.abs(b - world.lane))[0]
-      if (to !== undefined && to !== world.lane) moveLane(world, Math.sign(to - world.lane))
-    } else {
-      const target = world.pickups.find((p) => !p.taken && p.z > -26 && p.z < -8 && p.lane !== world.lane)
-      if (target && Math.random() < 0.04) moveLane(world, Math.sign(target.lane - world.lane))
-    }
-    if (world.critters.some((c) => !c.dying && c.lane === world.lane && -c.z > TUNING.whipNear && -c.z < TUNING.whipFar)) {
-      whip(world)
-    }
-    if (world.hp < 45) world.hp = 100 // the demo never dies
-    step(world, dt)
-
-    scene.update(world, 'playing', dt, now / 1000)
-    requestAnimationFrame(frame)
-  }
-  requestAnimationFrame(frame)
+  if (canvas) createDemo(canvas)
 }
 
 /* ------------------------------------------------- shared turntable renderer */

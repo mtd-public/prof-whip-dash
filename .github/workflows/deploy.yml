@@ -33,8 +33,12 @@ jobs:
         with:
           path: dist
 
+  # Feature branches build for verification but never deploy: the
+  # github-pages environment only accepts deployments from the default
+  # branch, so an ungated deploy job fails every push and reds the PR.
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

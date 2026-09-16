@@ -624,14 +624,14 @@ export function lightRig(scene: THREE.Scene, { key = 1.4, shadow = false } = {})
   sun.position.set(-6, 10, 9)
   if (shadow) {
     sun.castShadow = true
-    sun.shadow.mapSize.set(1024, 1024)
+    sun.shadow.mapSize.set(2048, 2048)
     const c = sun.shadow.camera
-    c.left = -10
-    c.right = 10
-    c.top = 10
-    c.bottom = -14
+    c.left = -16
+    c.right = 16
+    c.top = 14
+    c.bottom = -26
     c.near = 1
-    c.far = 46
+    c.far = 64
     sun.shadow.bias = -0.0015
     sun.shadow.normalBias = 0.02
   }
