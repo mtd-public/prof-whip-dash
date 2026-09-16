@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three'
 import * as K from './kit'
-import { PAL } from './palette'
+import { BIOMES, biomeForLevel, PAL, type Biome } from './palette'
 import { LANE_X, TUNING, type World } from './physics'
 import type { GamePhase } from './types'
 
@@ -59,6 +59,33 @@ function mod(n: number, m: number) {
   return ((n % m) + m) % m
 }
 
+const DUST_N = 40
+
+interface Dust {
+  mesh: THREE.Mesh
+  age: number
+  life: number
+  size0: number
+  size1: number
+  vx: number
+}
+
+/** Soft round dust puff, drawn once into a canvas texture. */
+function dustTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas')
+  c.width = c.height = 64
+  const ctx = c.getContext('2d')!
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(255,255,255,0.9)')
+  g.addColorStop(0.55, 'rgba(255,255,255,0.35)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 64, 64)
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
 export class Scene3D {
   private renderer: THREE.WebGLRenderer
   private scene = new THREE.Scene()
@@ -74,6 +101,17 @@ export class Scene3D {
   private idols: THREE.Group[] = []
   private scroll = 0
   private attractX = 0
+  /** Where each module sat last frame, so a wrap can be detected. */
+  private segZ: number[] = []
+  private segBiome: Biome[] = []
+  private biome: Biome = BIOMES[0]
+  /** Set when the level changes; modules adopt it as they recycle. */
+  private pendingBiome: Biome | null = null
+  private gate: THREE.Group | null = null
+  private gateZ = 0
+  private dust: Dust[] = []
+  private dustTimer = 0
+  private lastLane = 1
   /** Last frame's boulder z, so roll rate can follow true ground speed. */
   private boulderZ = [0, 0, 0]
   private rig: CameraRig = { ...CHASE_RIG }
@@ -94,12 +132,23 @@ export class Scene3D {
     this.sun = K.lightRig(this.scene, { key: 1.45, shadow: true })
 
     for (let i = 0; i < SEG_N; i++) {
-      const seg = K.makeTrackSegment(i + 1)
-      seg.traverse((o) => {
-        if ((o as THREE.Mesh).isMesh) o.receiveShadow = true
-      })
-      this.scene.add(seg)
-      this.segments.push(seg)
+      this.segments.push(this.buildSegment(i, this.biome))
+      this.segZ.push(0)
+      this.segBiome.push(this.biome)
+    }
+
+    // Dust pool: flat quads lying on the ground, which is the read that works
+    // under an overhead camera — a billboard would edge-on and vanish.
+    const tex = dustTexture()
+    for (let i = 0; i < DUST_N; i++) {
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }),
+      )
+      m.rotation.x = -Math.PI / 2
+      m.visible = false
+      this.scene.add(m)
+      this.dust.push({ mesh: m, age: 0, life: 0, size0: 0.25, size1: 0.7, vx: 0 })
     }
 
     for (let i = 0; i < PYRAMID_N; i++) {
@@ -146,6 +195,23 @@ export class Scene3D {
     stock(K.makeIdol, 3, 1.15, this.idols)
   }
 
+  private buildSegment(i: number, biome: Biome): THREE.Group {
+    const seg = K.makeTrackSegment(i + 1, biome)
+    seg.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) o.receiveShadow = true
+    })
+    this.scene.add(seg)
+    return seg
+  }
+
+  private disposeSegment(seg: THREE.Group) {
+    this.scene.remove(seg)
+    seg.traverse((o) => {
+      const m = o as THREE.Mesh
+      if (m.isMesh) m.geometry.dispose()
+    })
+  }
+
   /** Swap the camera rig. Used by the camera study page and by presets. */
   setRig(rig: Partial<CameraRig>) {
     this.rig = { ...this.rig, ...rig }
@@ -170,17 +236,103 @@ export class Scene3D {
   private scrollTrack(distance: number) {
     this.scroll += distance
     this.segments.forEach((seg, i) => {
-      seg.position.z = mod(this.scroll + i * K.SEGMENT_LEN, SPAN) - (SPAN - BEHIND)
+      const z = mod(this.scroll + i * K.SEGMENT_LEN, SPAN) - (SPAN - BEHIND)
+      // A module that jumps backwards has just recycled behind the camera:
+      // that is the moment to rebuild it in the new zone, so the boundary
+      // enters at the far end and sweeps toward the runner.
+      if (z < this.segZ[i] - K.SEGMENT_LEN && this.pendingBiome && this.segBiome[i] !== this.pendingBiome) {
+        const biome = this.pendingBiome
+        this.disposeSegment(seg)
+        const rebuilt = this.buildSegment(i, biome)
+        rebuilt.position.z = z
+        this.segments[i] = rebuilt
+        this.segBiome[i] = biome
+        if (!this.gate) this.spawnGate(biome, z - K.SEGMENT_LEN)
+        if (this.segBiome.every((b) => b === biome)) {
+          this.biome = biome
+          this.pendingBiome = null
+        }
+      } else {
+        seg.position.z = z
+      }
+      this.segZ[i] = z
     })
+    const city = (this.pendingBiome ?? this.biome).edging === 'wall'
     this.pyramids.forEach((p, i) => {
       p.position.z = mod(this.scroll * 0.8 + i * (PYRAMID_SPAN / PYRAMID_N), PYRAMID_SPAN) - (PYRAMID_SPAN - 20)
+      // In the city they are architecture, not skyline: closer and bigger.
+      const targetX = (i % 2 ? 1 : -1) * ((city ? 19 : 30) + i * 6)
+      const targetScale = city ? 1.5 : 1
+      p.position.x += (targetX - p.position.x) * 0.02
+      p.scale.setScalar(p.scale.x + (targetScale - p.scale.x) * 0.02)
     })
+  }
+
+  private spawnGate(biome: Biome, z: number) {
+    const gate = K.makeGate(biome)
+    gate.position.set(0, 0, z)
+    this.scene.add(gate)
+    this.gate = gate
+    this.gateZ = z
+  }
+
+  /** Heel dust while running, and a wider scuff out of every lane change. */
+  private emitDust(x: number, z: number, count: number, spread: number, colour: number) {
+    for (let n = 0; n < count; n++) {
+      const p = this.dust.find((d) => d.life <= 0)
+      if (!p) return
+      p.age = 0
+      p.life = 0.34 + Math.random() * 0.16
+      p.size0 = 0.26 + Math.random() * 0.12
+      p.size1 = p.size0 + 0.46 + Math.random() * 0.24
+      p.vx = (Math.random() - 0.5) * spread
+      p.mesh.visible = true
+      p.mesh.position.set(x + (Math.random() - 0.5) * 0.3, 0.06, z + (Math.random() - 0.5) * 0.3)
+      ;(p.mesh.material as THREE.MeshBasicMaterial).color.setHex(colour)
+    }
+  }
+
+  private updateDust(dt: number, speed: number) {
+    for (const p of this.dust) {
+      if (p.life <= 0) continue
+      p.age += dt
+      if (p.age >= p.life) {
+        p.life = 0
+        p.mesh.visible = false
+        continue
+      }
+      const k = p.age / p.life
+      // Dust is world-anchored: it slides back with the ground, not with him.
+      p.mesh.position.z += speed * dt
+      p.mesh.position.x += p.vx * dt
+      const size = p.size0 + (p.size1 - p.size0) * k
+      p.mesh.scale.set(size, size, 1)
+      ;(p.mesh.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - k * k)
+    }
   }
 
   update(world: World, phase: GamePhase, dt: number, t: number) {
     const playing = phase === 'playing'
     const speed = playing ? world.speed : 9
+
+    // The zone follows the level, and the theme loops every three.
+    const wanted = biomeForLevel(playing ? world.level : 1)
+    if (wanted !== this.biome && wanted !== this.pendingBiome) this.pendingBiome = wanted
+
     if (phase !== 'paused') this.scrollTrack(speed * dt)
+
+    if (this.gate) {
+      this.gateZ += speed * dt
+      this.gate.position.z = this.gateZ
+      if (this.gateZ > BEHIND) {
+        this.scene.remove(this.gate)
+        this.gate.traverse((o) => {
+          const m = o as THREE.Mesh
+          if (m.isMesh) m.geometry.dispose()
+        })
+        this.gate = null
+      }
+    }
 
     // --- runner ----------------------------------------------------------
     let laneX: number
@@ -277,6 +429,21 @@ export class Scene3D {
     }
     for (let i = coin; i < this.coins.length; i++) this.coins[i].visible = false
     for (let i = idol; i < this.idols.length; i++) this.idols[i].visible = false
+
+    // --- dust ------------------------------------------------------------
+    if (phase !== 'paused') {
+      const dustColour = (this.pendingBiome ?? this.biome).dust
+      this.dustTimer -= dt
+      if (this.dustTimer <= 0) {
+        this.dustTimer = 0.14
+        this.emitDust(laneX, 0.35, 1, 0.3, dustColour)
+      }
+      if (playing && world.lane !== this.lastLane) {
+        this.emitDust(laneX, 0.35, 6, 3.2, dustColour)
+        this.lastLane = world.lane
+      }
+      this.updateDust(dt, speed)
+    }
 
     // --- camera ----------------------------------------------------------
     const shake = playing ? world.shake : 0

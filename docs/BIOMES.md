@@ -1,7 +1,7 @@
 # Biomes — design note (levels 1–3)
 
-**Status:** wireframe agreed? Not yet — mock published, awaiting sign-off before
-any engine work. Nothing in `src/` has changed on this branch.
+**Status:** built. The three zones, the looping theme, the mask gates, the
+dust trail and the level-based difficulty ramp are all in `src/`.
 
 **Mock:** https://claude.ai/artifact/EoDuNrUZgfMkTrDHWdA6SR
 
@@ -11,7 +11,10 @@ any engine work. Nothing in `src/` has changed on this branch.
 | --- | --- | --- | --- |
 | 1 | Jungle trail | Packed dirt, cart ruts, plank sleepers | Timber trail gate |
 | 2 | The sacbé | The limestone causeway shipping today | Corbelled stone arch |
-| 3+ | The city | Flagstone plaza, obsidian inlay | Fortress tunnel |
+| 3 | The city | Flagstone plaza, obsidian inlay | Fortress tunnel |
+
+The theme **loops**: zone index is `(level - 1) % 3`, so level 4 is the trail
+again. Difficulty keys off the level, never the zone.
 
 Levels 1 and 2 share their jungle, pyramids and sky — only the road changes.
 Level 3 replaces all of it: no trees, a paved plaza between fortress walls with
@@ -103,14 +106,18 @@ read as an arrival — brighter ground, harder edges.
 Triangle count is roughly even — sleepers and ruts replace bands and grooves
 one for one.
 
-## Open questions
+## Settled
 
-1. **Level 4+** — default is that the city holds from level 3 onward: it is the
-   destination, so arriving and staying reads better than looping back to the
-   jungle. Cycling all three is the alternative and costs nothing extra.
-2. **Is the city road flagstone?** Specified surroundings, not ground. Drawn as
-   a polished flagstone plaza so the progression reads dirt → cut stone →
-   finished stone. The sacbé could simply continue through the city instead.
-3. **Is level 1 also easier?** Still open. Difficulty ramps on raw distance
-   today, so the trail is purely a skin. A gentler first 500m (one boulder
-   lane, slower vermin) is a tuning change, not an art one.
+1. **Level 4+** — the theme loops: trail, sacbé, city, trail…
+2. **The city road is flagstone** — polished plaza with obsidian inlay, so the
+   progression reads dirt → cut stone → finished stone.
+3. **Level 1 is the on-ramp** — one claimed lane, vermin 2.8s apart, longer
+   gaps between rows. Difficulty then ramps per level, not per zone.
+
+## Still worth tuning
+
+- The ×3 danger multiplier against the 18 HP/s grind — unchanged by this work,
+  still the open economy question.
+- Whether the city's fortress walls should throw more shadow across the road.
+  They were lowered to 2.4m because taller walls shaded the running lanes and
+  cost readability on coins and vermin.
