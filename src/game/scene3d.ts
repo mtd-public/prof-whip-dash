@@ -8,12 +8,47 @@ import { PAL } from './palette'
 import { LANE_X, TUNING, type World } from './physics'
 import type { GamePhase } from './types'
 
-const SEG_N = 6
+const SEG_N = 8
 const SPAN = K.SEGMENT_LEN * SEG_N
+/** How far the recycled strip reaches behind the runner. */
+const BEHIND = 26
 const PYRAMID_N = 3
 const PYRAMID_SPAN = 180
 
-const CAM = new THREE.Vector3(0, 4.6, 10)
+/**
+ * Where the camera sits relative to the runner. `side` is what turns the
+ * straight-on chase into an overhead diagonal: push the camera off the centre
+ * line while it keeps looking down the track.
+ */
+export interface CameraRig {
+  /** Metres above the slabs. */
+  height: number
+  /** Metres behind the runner. */
+  back: number
+  /** Metres to the right of the centre line. */
+  side: number
+  /** Look-at point, metres ahead of the runner (negative = ahead). */
+  lookAhead: number
+  /** Look-at point sideways. An off-axis camera needs this to frame the
+   *  runner — without it he drifts to the edge as `side` grows. */
+  lookSide: number
+  /** Height of the look-at point. */
+  lookHeight: number
+  fov: number
+  /** How much of the runner's lane offset the camera follows, 0–1. */
+  follow: number
+}
+
+export const CHASE_RIG: CameraRig = {
+  height: 4.6,
+  back: 10,
+  side: 0,
+  lookAhead: -6,
+  lookSide: 0,
+  lookHeight: 1.35,
+  fov: 55,
+  follow: 0.34,
+}
 
 function mod(n: number, m: number) {
   return ((n % m) + m) % m
@@ -34,6 +69,7 @@ export class Scene3D {
   private idols: THREE.Group[] = []
   private scroll = 0
   private attractX = 0
+  private rig: CameraRig = { ...CHASE_RIG }
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
@@ -103,6 +139,19 @@ export class Scene3D {
     stock(K.makeIdol, 3, 1.15, this.idols)
   }
 
+  /** Swap the camera rig. Used by the camera study page and by presets. */
+  setRig(rig: Partial<CameraRig>) {
+    this.rig = { ...this.rig, ...rig }
+    if (this.camera.fov !== this.rig.fov) {
+      this.camera.fov = this.rig.fov
+      this.camera.updateProjectionMatrix()
+    }
+  }
+
+  getRig(): CameraRig {
+    return { ...this.rig }
+  }
+
   resize(w: number, h: number) {
     if (!w || !h) return
     this.renderer.setSize(w, h, false)
@@ -114,7 +163,7 @@ export class Scene3D {
   private scrollTrack(distance: number) {
     this.scroll += distance
     this.segments.forEach((seg, i) => {
-      seg.position.z = mod(this.scroll + i * K.SEGMENT_LEN, SPAN) - (SPAN - 14)
+      seg.position.z = mod(this.scroll + i * K.SEGMENT_LEN, SPAN) - (SPAN - BEHIND)
     })
     this.pyramids.forEach((p, i) => {
       p.position.z = mod(this.scroll * 0.8 + i * (PYRAMID_SPAN / PYRAMID_N), PYRAMID_SPAN) - (PYRAMID_SPAN - 20)
@@ -144,11 +193,16 @@ export class Scene3D {
 
     // --- boulders --------------------------------------------------------
     this.boulders.forEach((b, i) => {
-      const z = playing ? world.boulders[i].z : i === 0 ? TUNING.grindZ + 1.2 : TUNING.idleZ
+      const data = playing ? world.boulders[i] : null
+      const z = data ? data.z : i === 0 ? TUNING.grindZ + 1.2 : TUNING.idleZ
       b.position.z += (z - b.position.z) * Math.min(1, dt * 12)
       b.position.x += (LANE_X[i] - b.position.x) * Math.min(1, dt * 3)
       b.position.y = 1.25 + Math.sin(t * 9 + i) * 0.04
       b.rotation.x -= (speed / 1.25) * dt
+      // Its five seconds are up: sink and shrink as it rolls out of shot.
+      const out = data ? Math.min(1, data.despawning / TUNING.despawnTime) : 0
+      b.scale.setScalar(1.12 * (1 - out * 0.65))
+      b.position.y -= out * 0.9
     })
 
     // --- pooled actors ---------------------------------------------------
@@ -208,12 +262,13 @@ export class Scene3D {
 
     // --- camera ----------------------------------------------------------
     const shake = playing ? world.shake : 0
+    const rig = this.rig
     this.camera.position.set(
-      CAM.x + laneX * 0.34 + (Math.random() - 0.5) * shake,
-      CAM.y + (Math.random() - 0.5) * shake,
-      CAM.z,
+      rig.side + laneX * rig.follow + (Math.random() - 0.5) * shake,
+      rig.height + (Math.random() - 0.5) * shake,
+      rig.back,
     )
-    this.camera.lookAt(laneX * 0.5, 1.35, -6)
+    this.camera.lookAt(rig.lookSide + laneX * rig.follow * 0.5, rig.lookHeight, rig.lookAhead)
 
     // Key light sits behind the runner so boulders throw their shadows
     // forward, up the lane he is about to run through.

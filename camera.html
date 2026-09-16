@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#101815" />
+    <title>WhipDash Camera Study</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;700&display=swap"
+    />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="bar__in">
+        <div class="mark">Professor <span>WhipDash</span></div>
+        <div class="note">camera study — pick one before I change the build</div>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <p class="eyebrow">Mockup · live engine</p>
+      <h1>Where should the camera sit?</h1>
+      <p class="lede">
+        This is the real game running — same physics, same models, same lighting — with the camera rig exposed. Tap a
+        preset to jump to it, then nudge the sliders until it looks right. The numbers at the bottom are exactly what
+        I'll put into <code>CHASE_RIG</code>, so whatever you land on is what ships.
+      </p>
+
+      <div class="study">
+        <div class="phone">
+          <div class="screen">
+            <canvas id="view"></canvas>
+            <div class="vig"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="presets" id="presets"></div>
+          <div class="sliders" id="sliders"></div>
+          <div class="rigout">
+            <div class="rigout__head">
+              <span>Current rig</span>
+              <button type="button" class="mini" id="reset">Reset to preset</button>
+            </div>
+            <pre id="rig"></pre>
+          </div>
+        </div>
+      </div>
+
+      <section>
+        <h2>What changes with the tilt</h2>
+        <dl class="spec">
+          <div>
+            <dt>
+              The boulders stop being invisible
+              <small>
+                Today they sit behind the camera and roll into frame when they claim a lane — that's why the lane ribbon
+                exists. Tilt overhead and you can see all three at rest, so the ribbon becomes a confirmation rather
+                than the primary read. Worth keeping either way, but it stops carrying the game.
+              </small>
+            </dt>
+            <dd>design</dd>
+          </div>
+          <div>
+            <dt>
+              Swipe axis vs. screen axis
+              <small>
+                At a diagonal, "left" on screen is no longer straight along the lanes. Up to about 40° of side offset it
+                still reads fine; past that, a swipe left starts feeling like it moves the runner diagonally.
+              </small>
+            </dt>
+            <dd>controls</dd>
+          </div>
+          <div>
+            <dt>
+              You see further ahead
+              <small>
+                A tall portrait frame wastes height on sky in the chase view. Tilting down fills the frame with track —
+                more reaction time for vermin, and the coin runs read as whole lines rather than as receding dots.
+              </small>
+            </dt>
+            <dd>legibility</dd>
+          </div>
+          <div>
+            <dt>
+              The runner shrinks
+              <small>
+                Overhead, the Professor reads as a hat and shoulders. If you want the fedora to stay the silhouette,
+                keep height under about 9m or pull the FOV in to compensate.
+              </small>
+            </dt>
+            <dd>character</dd>
+          </div>
+          <div>
+            <dt>
+              Shadows do more work
+              <small>
+                The key light is already behind the runner. Tilted down, the boulders' cast shadows stretch across the
+                lanes in full view — the single best thing the new angle buys you.
+              </small>
+            </dt>
+            <dd>lighting</dd>
+          </div>
+        </dl>
+      </section>
+
+      <footer class="foot">
+        Nothing here is committed to the game yet — the build still ships the chase camera. Boulders already despawn
+        after five seconds on this branch, which you can watch happen in the frame above.
+      </footer>
+    </div>
+
+    <script type="module" src="/src/board/camera.ts"></script>
+  </body>
+</html>

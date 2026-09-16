@@ -13,6 +13,7 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         board: resolve(import.meta.dirname, 'board.html'),
+        camera: resolve(import.meta.dirname, 'camera.html'),
       },
     },
   },

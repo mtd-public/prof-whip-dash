@@ -30,6 +30,12 @@ export const TUNING = {
   idleZ: 11.5,
   rowHold: [3.2, 5.4] as const,
   telegraph: 1.2,
+  /** How long a boulder may hold a lane before it rolls away and despawns. */
+  boulderLife: 5,
+  /** Quiet time after a despawn before that lane can be claimed again. */
+  boulderCooldown: 1.5,
+  /** Seconds of the retreat animation after its life runs out. */
+  despawnTime: 0.45,
 
   coinValue: 1,
   idolValue: 25,
@@ -40,6 +46,12 @@ export const TUNING = {
 export interface Boulder {
   lane: number
   z: number
+  /** Seconds this boulder has been holding its lane; -1 when not claiming. */
+  age: number
+  /** Counts up through the roll-away once its life runs out. */
+  despawning: number
+  /** Seconds until this lane may be claimed again. */
+  cooldown: number
 }
 
 export interface Critter {
@@ -71,6 +83,8 @@ export interface Fx {
   hit: number
   grind: number
   laneChange: number
+  /** A boulder hit its five-second limit and rolled away. */
+  despawn: number
 }
 
 export interface World {
@@ -109,7 +123,7 @@ export interface World {
 export const LANE_X = [-1.8, 0, 1.8]
 
 function emptyFx(): Fx {
-  return { coin: 0, idol: 0, crack: 0, perfect: 0, hit: 0, grind: 0, laneChange: 0 }
+  return { coin: 0, idol: 0, crack: 0, perfect: 0, hit: 0, grind: 0, laneChange: 0, despawn: 0 }
 }
 
 export function createWorld(): World {
@@ -123,9 +137,9 @@ export function createWorld(): World {
     combo: 0,
     multiplier: 1,
     boulders: [
-      { lane: 0, z: TUNING.idleZ },
-      { lane: 1, z: TUNING.idleZ },
-      { lane: 2, z: TUNING.idleZ },
+      { lane: 0, z: TUNING.idleZ, age: -1, despawning: 0, cooldown: 0 },
+      { lane: 1, z: TUNING.idleZ, age: -1, despawning: 0, cooldown: 0 },
+      { lane: 2, z: TUNING.idleZ, age: -1, despawning: 0, cooldown: 0 },
     ],
     critters: [],
     pickups: [],
@@ -192,8 +206,9 @@ export function whip(w: World) {
 function rollPattern(w: World): [number, number, number] {
   const claims = w.dist > 900 ? 2 : w.dist > 260 && Math.random() < 0.55 ? 2 : 1
   const p: [number, number, number] = [0, 0, 0]
-  const order = [0, 1, 2].sort(() => Math.random() - 0.5)
-  for (let i = 0; i < claims; i++) p[order[i]] = 2
+  const available = [0, 1, 2].filter((l) => w.boulders[l].cooldown <= 0)
+  const order = (available.length ? available : [0, 1, 2]).sort(() => Math.random() - 0.5)
+  for (let i = 0; i < Math.min(claims, order.length); i++) p[order[i]] = 2
   return p
 }
 
@@ -259,10 +274,45 @@ export function step(w: World, dt: number) {
   }
 
   w.boulders.forEach((b, i) => {
+    b.cooldown = Math.max(0, b.cooldown - dt)
+
+    if (b.despawning > 0) {
+      // Rolling away: it accelerates backwards out of shot, then resets.
+      b.despawning += dt
+      b.z += (TUNING.idleZ + 6 - b.z) * Math.min(1, dt * 4)
+      if (b.despawning >= TUNING.despawnTime) {
+        b.despawning = 0
+        b.z = TUNING.idleZ
+      }
+      return
+    }
+
     const claimed = w.pattern[i] === 2
+    if (claimed) {
+      b.age = b.age < 0 ? 0 : b.age + dt
+      if (b.age >= TUNING.boulderLife) {
+        // Five seconds is all it gets: release the lane and roll away.
+        b.age = -1
+        b.despawning = 0.001
+        b.cooldown = TUNING.boulderCooldown
+        w.pattern[i] = 0
+        if (w.nextPattern[i] === 2) w.nextPattern[i] = 0
+        w.fx.despawn++
+        return
+      }
+    } else {
+      b.age = -1
+    }
+
     const target = claimed ? TUNING.grindZ : TUNING.idleZ + (i % 2) * 1.4
     b.z += (target - b.z) * Math.min(1, dt * (claimed ? 1.9 : 1.1))
   })
+
+  // Every lane cooling down at once would leave nothing chasing the player.
+  if (w.boulders.every((b) => b.despawning > 0 || b.cooldown > 0)) {
+    const soonest = w.boulders.reduce((a, b) => (a.cooldown <= b.cooldown ? a : b))
+    soonest.cooldown = Math.min(soonest.cooldown, 0.4)
+  }
 
   // --- damage -------------------------------------------------------------
   w.grinding = w.pattern[w.lane] === 2 && w.boulders[w.lane].z < TUNING.grindZ + 1.4

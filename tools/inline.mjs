@@ -13,6 +13,7 @@ const root = resolve(import.meta.dirname, '..')
 const pages = [
   { input: 'index.html', out: 'whipdash-game.html' },
   { input: 'board.html', out: 'whipdash-board.html' },
+  { input: 'camera.html', out: 'whipdash-camera.html' },
 ]
 
 mkdirSync(join(root, 'artifact'), { recursive: true })
