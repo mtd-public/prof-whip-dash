@@ -133,11 +133,13 @@ tone mapping and timing.
   for pointerup is a hit), or tap the left/right half of the board, which moves
   to that side. The split is measured against the board, not the window, so the
   pillarboxed landscape layout still divides down the middle of the play area.
-- **The whip has its own button** in portrait: bottom right of the board, 78px,
-  clear of the runner (who sits low and left under the overhead camera) and
-  under the thumb. It stops its own pointer events reaching the board, so
-  cracking never costs a lane change. Landscape and desktop keep the footer bar
-  instead. Space still works everywhere.
+- **The whip has its own button** in portrait: a bar across the bottom of the
+  board, 90dvw wide and 62px tall, centred so either thumb reaches it. It sits
+  below the runner, who rides about two thirds down under the overhead camera.
+  It stops its own pointer events reaching the board, so cracking never costs a
+  lane change — though it does mean the bottom ~9% of the board is whip, not
+  lane. Landscape and desktop keep the footer bar instead. Space works
+  everywhere.
 - Swipe ↓ to slide (reserved).
 - No interactive UI in the bottom 12% — that's where the thumb and the home
   indicator live. Pause is top-right.
