@@ -57,6 +57,9 @@ export const TUNING = {
 
   coinValue: 1,
   idolValue: 25,
+  /** A heart restores one of the six segments on his back. */
+  heartHeal: 100 / 6,
+  heartEvery: [11, 18] as const,
   /** Share of coin runs that deliberately thread a dangerous lane. */
   riskyCoinChance: 0.7,
 } as const
@@ -87,7 +90,7 @@ export interface Critter {
 
 export interface Pickup {
   id: number
-  kind: 'coin' | 'idol'
+  kind: 'coin' | 'idol' | 'heart'
   lane: number
   z: number
   /** > 0 once collected: counts up through the pop animation. */
@@ -107,6 +110,8 @@ export interface Fx {
   laneChange: number
   /** A boulder hit its five-second limit and rolled away. */
   despawn: number
+  /** A heart was taken. */
+  heart: number
   /** Another 500m banked. */
   levelUp: number
 }
@@ -141,6 +146,7 @@ export interface World {
   spawnIn: number
   coinsIn: number
   idolIn: number
+  heartIn: number
   over: boolean
   fx: Fx
   nextId: number
@@ -149,7 +155,7 @@ export interface World {
 export const LANE_X = [-1.8, 0, 1.8]
 
 function emptyFx(): Fx {
-  return { coin: 0, idol: 0, crack: 0, perfect: 0, hit: 0, grind: 0, laneChange: 0, despawn: 0, levelUp: 0 }
+  return { coin: 0, idol: 0, crack: 0, perfect: 0, hit: 0, grind: 0, laneChange: 0, despawn: 0, levelUp: 0, heart: 0 }
 }
 
 export function createWorld(): World {
@@ -183,6 +189,7 @@ export function createWorld(): World {
     spawnIn: 1.6,
     coinsIn: 1.2,
     idolIn: 12,
+    heartIn: TUNING.heartEvery[0],
     over: false,
     fx: emptyFx(),
     nextId: 1,
@@ -263,6 +270,13 @@ function spawnCoinRun(w: World) {
       risky,
     })
   }
+}
+
+/** The clear lane — the one place a heart is allowed to be. */
+function clearLane(w: World): number | null {
+  const safe = [0, 1, 2].filter((l) => w.pattern[l] === 0 && w.nextPattern[l] !== 2)
+  if (!safe.length) return null
+  return safe[Math.floor(Math.random() * safe.length)]
 }
 
 function spawnIdol(w: World) {
@@ -425,6 +439,18 @@ export function step(w: World, dt: number) {
     w.idolIn = 16 + Math.random() * 10
     spawnIdol(w)
   }
+
+  // Hearts go where the coins never do: a lane with nothing claiming it.
+  w.heartIn -= dt
+  if (w.heartIn <= 0) {
+    const lane = clearLane(w)
+    w.heartIn = TUNING.heartEvery[0] + Math.random() * (TUNING.heartEvery[1] - TUNING.heartEvery[0])
+    if (lane === null) {
+      w.heartIn = 1.5 // every lane is spoken for; try again shortly
+    } else {
+      w.pickups.push({ id: w.nextId++, kind: 'heart', lane, z: -56, taken: 0, risky: false })
+    }
+  }
   for (const p of w.pickups) {
     if (p.taken) {
       p.taken += dt
@@ -433,10 +459,14 @@ export function step(w: World, dt: number) {
     p.z += w.speed * dt
     if (p.z > -1 && p.z < 1 && p.lane === w.lane) {
       p.taken = 0.001
-      const value = (p.kind === 'idol' ? TUNING.idolValue : TUNING.coinValue) * w.multiplier
-      w.coins += value
-      if (p.kind === 'idol') w.fx.idol++
-      else w.fx.coin++
+      if (p.kind === 'heart') {
+        w.hp = Math.min(100, w.hp + TUNING.heartHeal)
+        w.fx.heart++
+      } else {
+        w.coins += (p.kind === 'idol' ? TUNING.idolValue : TUNING.coinValue) * w.multiplier
+        if (p.kind === 'idol') w.fx.idol++
+        else w.fx.coin++
+      }
     }
   }
   w.pickups = w.pickups.filter((p) => p.taken < 0.3 && p.z < 4)

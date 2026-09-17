@@ -14,6 +14,9 @@ export interface GameState {
   multiplier: number
   /** Levels advance every 500m. */
   level: number
+  /** The art theme the run is currently in — drives the topbar's stone. */
+  world: string
+  zone: string
   /** Progress through the current level, 0–1. */
   levelProgress: number
   /** Metres still to run before the next level. */

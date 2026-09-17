@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three'
 import * as K from './kit'
-import { BIOMES, biomeForLevel, PAL, type Biome } from './palette'
+import { biomeForLevel, PAL, WORLDS, worldForLevel, type Biome, type WorldTheme } from './palette'
 import { LANE_X, TUNING, type World } from './physics'
 import type { GamePhase } from './types'
 
@@ -104,7 +104,7 @@ export class Scene3D {
   /** Where each module sat last frame, so a wrap can be detected. */
   private segZ: number[] = []
   private segBiome: Biome[] = []
-  private biome: Biome = BIOMES[0]
+  private biome: Biome = WORLDS[0].zones[0]
   /** Set when the level changes; modules adopt it as they recycle. */
   private pendingBiome: Biome | null = null
   private gate: THREE.Group | null = null
@@ -112,6 +112,16 @@ export class Scene3D {
   private dust: Dust[] = []
   private dustTimer = 0
   private lastLane = 1
+  private skylineKind: 'stepped' | 'smooth' = 'stepped'
+  private world: WorldTheme = WORLDS[0]
+  private skies: THREE.Mesh[] = []
+  private hearts: THREE.Group[] = []
+  private ring = K.makeHealthRing()
+  private shards: THREE.Mesh[] = []
+  private shardState: { v: THREE.Vector3; spin: number; life: number }[] = []
+  private lastLit = K.HEALTH_SEGMENTS
+  private tallies: THREE.Sprite[] = []
+  private tallyTex: THREE.CanvasTexture[] = []
   /** Last frame's boulder z, so roll rate can follow true ground speed. */
   private boulderZ = [0, 0, 0]
   private rig: CameraRig = { ...CHASE_RIG }
@@ -127,8 +137,15 @@ export class Scene3D {
     // Distant geometry fades into a pale jungle haze rather than to black,
     // and the sky dome carries the colour above the horizon line.
     this.scene.background = new THREE.Color(0xb9bd98)
-    this.scene.fog = new THREE.FogExp2(0xadb894, 0.011)
-    this.scene.add(K.makeSky())
+    this.scene.fog = new THREE.FogExp2(WORLDS[0].fog, 0.011)
+    // One dome per world, toggled — cheaper and steadier than rebuilding the
+    // gradient texture mid-run.
+    for (const w of WORLDS) {
+      const sky = K.makeSky(w.sky)
+      sky.visible = w === WORLDS[0]
+      this.scene.add(sky)
+      this.skies.push(sky)
+    }
     this.sun = K.lightRig(this.scene, { key: 1.45, shadow: true })
 
     for (let i = 0; i < SEG_N; i++) {
@@ -152,11 +169,38 @@ export class Scene3D {
     }
 
     for (let i = 0; i < PYRAMID_N; i++) {
-      const p = K.makePyramid(i + 3)
-      p.position.set((i % 2 ? 1 : -1) * (30 + i * 6), -1, 0)
-      p.rotation.y = (i % 2 ? 1 : -1) * 0.4
-      this.scene.add(p)
-      this.pyramids.push(p)
+      const stepped = K.makePyramid(i + 3)
+      const smooth = K.makeSmoothPyramid(i + 3)
+      smooth.visible = false
+      const holder = new THREE.Group()
+      holder.add(stepped)
+      holder.add(smooth)
+      holder.position.set((i % 2 ? 1 : -1) * (30 + i * 6), -1, 0)
+      holder.rotation.y = (i % 2 ? 1 : -1) * 0.4
+      holder.userData.stepped = stepped
+      holder.userData.smooth = smooth
+      this.scene.add(holder)
+      this.pyramids.push(holder)
+    }
+
+    // The gauge rides on his back, which the camera never looks away from.
+    this.ring.group.position.set(0, 1.34, -0.26)
+    this.ring.group.rotation.y = Math.PI
+    this.runner.add(this.ring.group)
+    for (let i = 0; i < 4; i++) {
+      const shard = K.makeRingShard()
+      this.scene.add(shard)
+      this.shards.push(shard)
+      this.shardState.push({ v: new THREE.Vector3(), spin: 0, life: 0 })
+    }
+
+    this.tallyTex = K.tallyTextures()
+    for (let i = 0; i < 3; i++) {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tallyTex[0], transparent: true, depthTest: true }))
+      sprite.scale.set(1.1, 1.1, 1)
+      sprite.visible = false
+      this.scene.add(sprite)
+      this.tallies.push(sprite)
     }
 
     this.runner.rotation.y = Math.PI
@@ -193,6 +237,12 @@ export class Scene3D {
     stock(K.makeScarab, 6, 1.45, this.scarabs)
     stock(K.makeCoin, 44, 1, this.coins)
     stock(K.makeIdol, 3, 1.15, this.idols)
+    for (let i = 0; i < 4; i++) {
+      const heart = K.makeHeart(WORLDS[0].zones[0].heart, false)
+      heart.visible = false
+      this.scene.add(heart)
+      this.hearts.push(heart)
+    }
   }
 
   private buildSegment(i: number, biome: Biome): THREE.Group {
@@ -257,14 +307,25 @@ export class Scene3D {
       }
       this.segZ[i] = z
     })
-    const city = (this.pendingBiome ?? this.biome).edging === 'wall'
+    // The skyline is the zone's, and it eases rather than cuts — which is how
+    // Egypt reads as walking toward the pyramids over three levels.
+    const sky = (this.pendingBiome ?? this.biome).skyline
+    // Easing between two different pyramid kinds is meaningless and puts a
+    // half-grown cone over the road, so a change of kind snaps.
+    const kindChanged = sky.kind !== this.skylineKind
+    this.skylineKind = sky.kind
+    const ease = kindChanged ? 1 : Math.min(1, 0.45 * (1 / 60))
     this.pyramids.forEach((p, i) => {
-      p.position.z = mod(this.scroll * 0.8 + i * (PYRAMID_SPAN / PYRAMID_N), PYRAMID_SPAN) - (PYRAMID_SPAN - 20)
-      // In the city they are architecture, not skyline: closer and bigger.
-      const targetX = (i % 2 ? 1 : -1) * ((city ? 19 : 30) + i * 6)
-      const targetScale = city ? 1.5 : 1
-      p.position.x += (targetX - p.position.x) * 0.02
-      p.scale.setScalar(p.scale.x + (targetScale - p.scale.x) * 0.02)
+      // Pinned skylines hold their distance; the rest recycle past like scenery.
+      p.position.z =
+        sky.z !== undefined
+          ? sky.z - i * 22
+          : mod(this.scroll * 0.8 + i * (PYRAMID_SPAN / PYRAMID_N), PYRAMID_SPAN) - (PYRAMID_SPAN - 20)
+      const targetX = (i % 2 ? 1 : -1) * (sky.near + i * 6)
+      p.position.x += (targetX - p.position.x) * ease
+      p.scale.setScalar(p.scale.x + (sky.scale - p.scale.x) * ease)
+      ;(p.userData.stepped as THREE.Object3D).visible = sky.kind === 'stepped'
+      ;(p.userData.smooth as THREE.Object3D).visible = sky.kind === 'smooth'
     })
   }
 
@@ -315,9 +376,37 @@ export class Scene3D {
     const playing = phase === 'playing'
     const speed = playing ? world.speed : 9
 
-    // The zone follows the level, and the theme loops every three.
-    const wanted = biomeForLevel(playing ? world.level : 1)
+    // The zone follows the level; the theme loops every three, and the world
+    // alternates every three zones.
+    const level = playing ? world.level : 1
+    const wanted = biomeForLevel(level)
     if (wanted !== this.biome && wanted !== this.pendingBiome) this.pendingBiome = wanted
+
+    const wantedWorld = worldForLevel(level)
+    if (wantedWorld !== this.world) {
+      this.world = wantedWorld
+      this.skies.forEach((dome, i) => {
+        dome.visible = WORLDS[i] === wantedWorld
+      })
+      this.hearts.forEach((h, i) => {
+        // Rebuilt rather than recoloured: a scarab is not a tinted heart.
+        this.scene.remove(h)
+        h.traverse((o) => {
+          const m = o as THREE.Mesh
+          if (m.isMesh) m.geometry.dispose()
+        })
+        const next = K.makeHeart(wantedWorld.zones[0].heart, wantedWorld.name === 'Egypt')
+        next.visible = false
+        this.scene.add(next)
+        this.hearts[i] = next
+      })
+    }
+    if (this.scene.fog) {
+      const fog = this.scene.fog as THREE.FogExp2
+      fog.color.lerp(new THREE.Color(this.world.fog), Math.min(1, dt * 0.6))
+      fog.density += (this.world.fogDensity - fog.density) * Math.min(1, dt * 0.6)
+      this.scene.background = fog.color
+    }
 
     if (phase !== 'paused') this.scrollTrack(speed * dt)
 
@@ -403,10 +492,11 @@ export class Scene3D {
 
     let coin = 0
     let idol = 0
+    let heart = 0
     if (playing) {
       for (const p of world.pickups) {
-        const pool = p.kind === 'coin' ? this.coins : this.idols
-        const idx = p.kind === 'coin' ? coin++ : idol++
+        const pool = p.kind === 'coin' ? this.coins : p.kind === 'heart' ? this.hearts : this.idols
+        const idx = p.kind === 'coin' ? coin++ : p.kind === 'heart' ? heart++ : idol++
         const m = pool[idx]
         if (!m) continue
         m.visible = true
@@ -414,6 +504,9 @@ export class Scene3D {
         if (p.kind === 'coin') {
           m.position.set(LANE_X[p.lane], 1.05 + bob, p.z)
           m.rotation.y = t * 3.2 + p.id
+        } else if (p.kind === 'heart') {
+          m.position.set(LANE_X[p.lane], 1.1 + bob * 1.4, p.z)
+          m.rotation.y = t * 1.1
         } else {
           m.position.set(LANE_X[p.lane], 1.0 + bob, p.z)
           m.rotation.y = t * 1.4
@@ -429,6 +522,7 @@ export class Scene3D {
     }
     for (let i = coin; i < this.coins.length; i++) this.coins[i].visible = false
     for (let i = idol; i < this.idols.length; i++) this.idols[i].visible = false
+    for (let i = heart; i < this.hearts.length; i++) this.hearts[i].visible = false
 
     // --- dust ------------------------------------------------------------
     if (phase !== 'paused') {
@@ -444,6 +538,55 @@ export class Scene3D {
       }
       this.updateDust(dt, speed)
     }
+
+    // --- health ring on his back -----------------------------------------
+    const lit = playing ? Math.max(0, Math.ceil((world.hp / 100) * K.HEALTH_SEGMENTS)) : K.HEALTH_SEGMENTS
+    K.setHealthRing(this.ring, lit, t)
+    if (lit < this.lastLit) {
+      // Losing a segment is an event: it snaps off and tumbles away behind him.
+      const idx = this.shardState.findIndex((sh) => sh.life <= 0)
+      if (idx >= 0) {
+        const shard = this.shards[idx]
+        shard.visible = true
+        shard.position.set(laneX, 1.34, -0.2)
+        shard.rotation.set(0, 0, (Math.PI * 2 * lit) / K.HEALTH_SEGMENTS)
+        this.shardState[idx].v.set((Math.random() - 0.5) * 2.4, 3.4, 5 + Math.random() * 3)
+        this.shardState[idx].spin = (Math.random() - 0.5) * 16
+        this.shardState[idx].life = 0.9
+      }
+    }
+    this.lastLit = lit
+    this.shards.forEach((shard, i) => {
+      const st = this.shardState[i]
+      if (st.life <= 0) return
+      st.life -= dt
+      st.v.y -= 14 * dt
+      shard.position.addScaledVector(st.v, dt)
+      shard.position.z += speed * dt * 0.5
+      shard.rotation.x += st.spin * dt
+      shard.rotation.z += st.spin * dt * 0.6
+      if (st.life <= 0 || shard.position.y < -1) {
+        st.life = 0
+        shard.visible = false
+      }
+    })
+
+    // --- boulder tallies ---------------------------------------------------
+    this.tallies.forEach((sprite, i) => {
+      const data = playing ? world.boulders[i] : null
+      const claiming = !!data && data.age >= 0 && data.despawning <= 0
+      sprite.visible = claiming
+      if (!data || !claiming) return
+      // Whole seconds left, mapped onto the five faces [5,4,3,2,1].
+      const left = Math.max(1, Math.ceil(TUNING.boulderLife - data.age))
+      const frame = this.tallyTex[Math.min(4, Math.max(0, 5 - left))]
+      if (sprite.material.map !== frame) {
+        sprite.material.map = frame
+        sprite.material.needsUpdate = true
+      }
+      const b = this.boulders[i]
+      sprite.position.set(b.position.x, b.position.y + 1.9, b.position.z)
+    })
 
     // --- camera ----------------------------------------------------------
     const shake = playing ? world.shake : 0

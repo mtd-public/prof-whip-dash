@@ -9,7 +9,7 @@
  * Unit scale: 1 unit = 1 metre. The Professor is 1.8m; a lane is 1.8m wide.
  */
 import * as THREE from 'three'
-import { BIOMES, PAL, type Biome } from './palette'
+import { PAL, WORLDS, type Biome } from './palette'
 
 export const LANE_X = [-1.8, 0, 1.8] as const
 export const SEGMENT_LEN = 12
@@ -352,6 +352,92 @@ export function skitter(g: THREE.Group, t: number, rate = 1) {
   p.body.rotation.z = Math.sin(t * 7 * rate) * 0.06
 }
 
+/* ---------------------------------------------------------------- health */
+
+export const HEALTH_SEGMENTS = 6
+
+export interface HealthRing {
+  group: THREE.Group
+  segments: THREE.Mesh[]
+}
+
+/**
+ * The gauge on his back. The overhead camera looks at it the whole run, which
+ * is the only reason this can replace a bar at the top of the screen — and why
+ * it has to be oversized relative to the pack and read by colour and count
+ * rather than by fine gradation.
+ */
+export function makeHealthRing(): HealthRing {
+  const group = new THREE.Group()
+  const segments: THREE.Mesh[] = []
+  const R = 0.46
+  const gap = 0.16
+  const step = (Math.PI * 2) / HEALTH_SEGMENTS
+  // Backing plate, so the ring reads against his coat rather than through it
+  const plate = new THREE.Mesh(new THREE.CircleGeometry(R + 0.1, 16), mat(0x2b241c))
+  plate.position.z = -0.02
+  group.add(plate)
+  for (let i = 0; i < HEALTH_SEGMENTS; i++) {
+    const geo = new THREE.TorusGeometry(R, 0.075, 5, 8, step - gap)
+    const seg = new THREE.Mesh(geo, mat(PAL.gold, { emissive: PAL.gold, emissiveIntensity: 0.5 }))
+    seg.rotation.z = Math.PI / 2 - i * step - (step - gap) / 2
+    group.add(seg)
+    segments.push(seg)
+  }
+  return { group, segments }
+}
+
+/** Gold while healthy, amber at two, red and pulsing at one. */
+export function setHealthRing(ring: HealthRing, lit: number, t: number) {
+  const colour = lit <= 1 ? PAL.hazard : lit <= 2 ? PAL.ochre : PAL.gold
+  const pulse = lit <= 1 ? 0.5 + Math.abs(Math.sin(t * 6)) * 0.9 : 0.55
+  ring.segments.forEach((seg, i) => {
+    const on = i < lit
+    seg.material = on
+      ? mat(colour, { emissive: colour, emissiveIntensity: pulse })
+      : mat(0x3b3a33)
+  })
+}
+
+/** A segment knocked loose, to be thrown backwards and tumbled by the scene. */
+export function makeRingShard(): THREE.Mesh {
+  const step = (Math.PI * 2) / HEALTH_SEGMENTS
+  const shard = new THREE.Mesh(
+    new THREE.TorusGeometry(0.46, 0.075, 5, 8, step - 0.16),
+    mat(PAL.hazard, { emissive: PAL.hazard, emissiveIntensity: 0.8 }),
+  )
+  shard.visible = false
+  return shard
+}
+
+/* --------------------------------------------------------- boulder tally */
+
+/** The five faces of the countdown, drawn once and swapped by index. */
+export function tallyTextures(): THREE.CanvasTexture[] {
+  return [5, 4, 3, 2, 1].map((n) => {
+    const c = document.createElement('canvas')
+    c.width = c.height = 128
+    const ctx = c.getContext('2d')!
+    const colour = n >= 4 ? '#cfc7ad' : n >= 2 ? '#e8a13c' : '#4fb286'
+    ctx.fillStyle = 'rgba(20,16,22,0.82)'
+    ctx.beginPath()
+    ctx.roundRect(18, 10, 92, 108, 10)
+    ctx.fill()
+    ctx.strokeStyle = colour
+    ctx.lineWidth = 5
+    ctx.stroke()
+    ctx.fillStyle = colour
+    ctx.fillRect(18, 10, 92, 16)
+    ctx.font = 'bold 74px Cinzel, Georgia, serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(String(n), 64, 74)
+    const tex = new THREE.CanvasTexture(c)
+    tex.colorSpace = THREE.SRGBColorSpace
+    return tex
+  })
+}
+
 /* --------------------------------------------------------------- pickups */
 
 /** Gold coin stamped with a glyph — the thing you take risks for. */
@@ -367,6 +453,44 @@ export function makeCoin(): THREE.Group {
     g.add(box(0.13, 0.13, 0.02, PAL.goldDeep, 0, 0, z))
     g.add(box(0.06, 0.06, 0.03, PAL.gold, 0, 0, z * 1.4))
   }
+  return g
+}
+
+/**
+ * A heart. Maya carries a jade one; Egypt a faience scarab. They spawn in
+ * clear lanes — the exact inverse of the coin runs, so gold and life pull in
+ * opposite directions across the road.
+ */
+export function makeHeart(colour: number, scarab: boolean): THREE.Group {
+  const g = new THREE.Group()
+  if (scarab) {
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 7, 0, Math.PI * 2, 0, Math.PI / 2), mat(colour, { emissive: colour, emissiveIntensity: 0.35 }))
+    shell.scale.set(1, 0.8, 1.3)
+    g.add(shell)
+    g.add(box(0.03, 0.26, 0.78, PAL.lapis, 0, 0.22, 0))
+    const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), mat(PAL.egyptGold, { emissive: PAL.egyptGold, emissiveIntensity: 0.3 }))
+    head.position.z = -0.36
+    g.add(head)
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        g.add(box(0.05, 0.05, 0.22, PAL.egyptGold, side * 0.3, 0, -0.2 + i * 0.22))
+      }
+    }
+  } else {
+    for (const side of [-1, 1]) {
+      const lobe = new THREE.Mesh(new THREE.IcosahedronGeometry(0.21, 1), mat(colour, { emissive: colour, emissiveIntensity: 0.4 }))
+      lobe.position.set(side * 0.15, 0.13, 0)
+      g.add(lobe)
+    }
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.29, 0.44, 6), mat(colour, { emissive: colour, emissiveIntensity: 0.4 }))
+    tip.position.y = -0.18
+    tip.rotation.x = Math.PI
+    g.add(tip)
+    g.add(box(0.5, 0.06, 0.06, PAL.gold, 0, 0.02, 0.2))
+  }
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
   return g
 }
 
@@ -491,6 +615,151 @@ export function makePyramid(seed: number): THREE.Group {
   return g
 }
 
+/** A date palm: leaning trunk, fronds drooping off a crown. */
+export function makePalm(seed: number): THREE.Group {
+  const g = new THREE.Group()
+  const r = rnd(seed)
+  const h = 4.4 + r() * 2.4
+  const lean = (r() - 0.5) * 0.5
+  const trunk = new THREE.Group()
+  for (let i = 0; i < 7; i++) {
+    const k = i / 7
+    const seg = cyl(0.17 - k * 0.05, 0.2 - k * 0.05, h / 7 + 0.06, 6, PAL.palmTrunk, lean * k * h * 0.3, h * (k + 1 / 14), 0)
+    trunk.add(seg)
+  }
+  g.add(trunk)
+  const cx = lean * h * 0.3
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2
+    const frond = box(0.24, 0.1, 2.3 + r() * 0.7, i % 2 ? PAL.palmLeaf : PAL.palmLeafDeep, 0, 0, 1.15)
+    const arm = new THREE.Group()
+    arm.position.set(cx, h, 0)
+    arm.rotation.y = a
+    arm.rotation.x = -0.5 - r() * 0.35
+    arm.add(frond)
+    g.add(arm)
+  }
+  for (let i = 0; i < 3; i++) {
+    const date = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), mat(PAL.ochre))
+    date.position.set(cx + Math.sin(i * 2) * 0.3, h - 0.3, Math.cos(i * 2) * 0.3)
+    g.add(date)
+  }
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
+/** An obelisk: tapered shaft, gilded pyramidion. */
+export function makeObelisk(): THREE.Group {
+  const g = new THREE.Group()
+  g.add(box(1.4, 0.5, 1.4, PAL.slabWorn, 0, 0.25, 0))
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.52, 6.4, 4), mat(PAL.graniteRed))
+  shaft.position.y = 3.7
+  shaft.rotation.y = Math.PI / 4
+  g.add(shaft)
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.48, 0.9, 4), mat(PAL.egyptGold, { emissive: PAL.egyptGold, emissiveIntensity: 0.25 }))
+  cap.position.y = 7.3
+  cap.rotation.y = Math.PI / 4
+  g.add(cap)
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
+/** Ram-headed sphinx on a plinth — the avenue piece. */
+export function makeRamSphinx(facing: number): THREE.Group {
+  const g = new THREE.Group()
+  g.add(box(2.4, 0.5, 1.4, PAL.slabWorn, 0, 0.25, 0))
+  g.add(box(2.0, 0.8, 1.0, PAL.sandLight, 0, 0.9, 0))
+  g.add(box(0.7, 0.5, 0.9, PAL.sandLight, facing * 0.8, 1.55, 0))
+  g.add(box(0.5, 0.42, 0.5, PAL.nemesFace, facing * 1.15, 1.6, 0))
+  for (const side of [-1, 1]) {
+    const horn = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.09, 5, 10, Math.PI * 1.4), mat(PAL.sandDark))
+    horn.position.set(facing * 1.05, 1.62, side * 0.28)
+    horn.rotation.y = Math.PI / 2
+    g.add(horn)
+  }
+  g.add(box(0.9, 0.16, 0.8, PAL.lapis, facing * 0.7, 1.9, 0))
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
+/** The Great Sphinx: couchant body, forepaws, nemes with lappets. */
+export function makeSphinx(): THREE.Group {
+  const g = new THREE.Group()
+  g.add(box(9, 3.4, 4.4, PAL.sandLight, 0, 1.7, 0))
+  g.add(box(3.4, 1.2, 4.4, PAL.sandDark, -2.6, 3.9, 0))
+  g.add(box(4.6, 1.2, 3.4, PAL.nemesFace, 4.2, 0.6, 0))
+  for (let i = 0; i < 3; i++) {
+    g.add(box(0.5, 0.7, 3.2, PAL.sandDark, 5.8, 0.55, -1.2 + i * 1.2))
+  }
+  g.add(box(2.2, 2.6, 2.4, PAL.sandLight, 3.1, 4.6, 0))
+  const head = new THREE.Group()
+  head.position.set(3.3, 6.6, 0)
+  g.add(head)
+  head.add(box(2.6, 2.6, 3.0, PAL.lapis))
+  for (let i = 0; i < 4; i++) {
+    head.add(box(2.7, 0.3, 3.1, PAL.egyptGold, 0, 0.9 - i * 0.6, 0))
+  }
+  head.add(box(0.9, 2.0, 2.2, PAL.nemesFace, 1.1, -0.2, 0))
+  head.add(box(0.2, 0.34, 0.34, PAL.obsidian, 1.55, 0.35, -0.6))
+  head.add(box(0.2, 0.34, 0.34, PAL.obsidian, 1.55, 0.35, 0.6))
+  head.add(box(0.5, 0.5, 0.5, PAL.egyptGold, 0.6, 1.5, 0))
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
+/** Seated pharaoh: knees, fists, nemes, false beard. */
+function makePharaoh(seed: number): THREE.Group {
+  const g = new THREE.Group()
+  const r = rnd(seed)
+  g.add(box(3.2, 0.7, 2.6, PAL.slabWorn, 0, 0.35, 0))
+  g.add(box(2.6, 1.5, 2.0, PAL.sandDark, 0, 1.45, 0))
+  g.add(box(0.8, 0.5, 0.8, PAL.sandLight, -0.8, 2.3, 0.7))
+  g.add(box(0.8, 0.5, 0.8, PAL.sandLight, 0.8, 2.3, 0.7))
+  g.add(box(1.8, 2.2, 1.3, PAL.sandLight, 0, 3.3, 0))
+  g.add(box(1.9, 0.3, 1.4, PAL.faience, 0, 4.2, 0))
+  const head = new THREE.Group()
+  head.position.set(0, 5.0, 0)
+  g.add(head)
+  head.add(box(1.5, 1.2, 1.3, PAL.lapis))
+  head.add(box(0.9, 1.0, 0.72, PAL.nemesFace, 0, -0.05, 0.4))
+  head.add(box(0.2, 0.16, 0.1, PAL.obsidian, -0.22, 0.12, 0.76))
+  head.add(box(0.2, 0.16, 0.1, PAL.obsidian, 0.22, 0.12, 0.76))
+  head.add(box(1.6, 0.22, 1.4, PAL.egyptGold, 0, 0.66, 0))
+  head.add(box(0.26, 0.7, 0.26, PAL.graniteRed, 0, -0.8, 0.5))
+  g.rotation.y = (r() - 0.5) * 0.2
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
+/** Smooth-sided pyramid with the casing still on at the apex. */
+export function makeSmoothPyramid(seed: number): THREE.Group {
+  const g = new THREE.Group()
+  const r = rnd(seed)
+  // Fixed base: the zone's skyline scale does the growing, so the prop has to
+  // start at a known size or a mid-transition frame puts it over the road.
+  const w = 23 + r() * 3
+  const h = w * 0.9
+  const body = new THREE.Mesh(new THREE.ConeGeometry(w * 0.72, h, 4), mat(PAL.sandLight))
+  body.position.y = h / 2
+  body.rotation.y = Math.PI / 4
+  g.add(body)
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(w * 0.16, h * 0.22, 4), mat(0xf2dfae))
+  cap.position.y = h - h * 0.11
+  cap.rotation.y = Math.PI / 4
+  g.add(cap)
+  return g
+}
+
 /** A colossal seated statue — the city's roadside dressing. */
 function makeStatue(seed: number): THREE.Group {
   const g = new THREE.Group()
@@ -549,7 +818,7 @@ function makeWallRun(biome: Biome, seed: number): THREE.Group {
  * decides the surface, the lane markers, the cadence markers, the edging and
  * the roadside dressing — the lane geometry never moves.
  */
-export function makeTrackSegment(seed = 1, biome: Biome = BIOMES[1]): THREE.Group {
+export function makeTrackSegment(seed = 1, biome: Biome = WORLDS[0].zones[1]): THREE.Group {
   const g = new THREE.Group()
   const r = rnd(seed)
 
@@ -598,10 +867,26 @@ export function makeTrackSegment(seed = 1, biome: Biome = BIOMES[1]): THREE.Grou
       const head = makeSerpentHead(1)
       head.position.set(side * 3.1, 0.1, -SEGMENT_LEN + 0.6)
       g.add(head)
-    } else if (biome.edging === 'wall') {
+    } else if (biome.edging === 'wall' || biome.edging === 'plinths') {
       const wall = makeWallRun(biome, seed * 3 + side)
       wall.position.set(side * 3.5, 0, 0)
       g.add(wall)
+    } else if (biome.edging === 'relief') {
+      // A low carved wall: the causeway is dressed, not walled in.
+      g.add(box(0.6, 1.0, SEGMENT_LEN, biome.edge, side * 3.2, 0.5, -SEGMENT_LEN / 2))
+      g.add(box(0.7, 0.16, SEGMENT_LEN, biome.edgeTop, side * 3.2, 1.05, -SEGMENT_LEN / 2))
+      for (let i = 0; i < 6; i++) {
+        g.add(box(0.64, 0.3, 0.9, i % 2 ? PAL.graniteRed : PAL.lapis, side * 3.2, 0.65, -i * 2 - 1))
+      }
+    } else if (biome.edging === 'berm') {
+      // Sand banked up where the track has been worn below the dunes.
+      g.add(box(1.3, 0.34, SEGMENT_LEN, biome.edge, side * 3.4, 0.05, -SEGMENT_LEN / 2))
+      g.add(box(0.9, 0.16, SEGMENT_LEN, biome.edgeTop, side * 3.8, 0.2, -SEGMENT_LEN / 2))
+      for (let i = 0; i < 5; i++) {
+        const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 4), mat(PAL.palmLeafDeep))
+        tuft.position.set(side * (3.6 + r() * 0.8), 0.3, -r() * SEGMENT_LEN)
+        g.add(tuft)
+      }
     } else {
       // Trodden verge: earth banked up where feet have pushed it aside.
       g.add(box(0.7, 0.22, SEGMENT_LEN, biome.edge, side * 3.2, 0.02, -SEGMENT_LEN / 2))
@@ -634,6 +919,43 @@ export function makeTrackSegment(seed = 1, biome: Biome = BIOMES[1]): THREE.Grou
         st.position.set(side * 5.6, 0, -2 - r() * 8)
         g.add(st)
       }
+    } else if (biome.props === 'desert') {
+      // Bleached stone and a toppled marker, always off the running line.
+      for (let i = 0; i < 3; i++) {
+        const stone = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2 + r() * 0.3, 0), mat(PAL.sandWorn))
+        stone.position.set(side * (2.6 + r() * 2.2), 0.05, -r() * SEGMENT_LEN)
+        stone.scale.y = 0.55
+        stone.castShadow = true
+        g.add(stone)
+      }
+      if (r() > 0.7) {
+        const marker = box(0.5, 2.2, 0.5, PAL.slabWorn, side * 4.6, 0.6, -r() * SEGMENT_LEN)
+        marker.rotation.z = side * (0.5 + r() * 0.5)
+        g.add(marker)
+      }
+    } else if (biome.props === 'sphinxes') {
+      if (r() > 0.4) {
+        const ram = makeRamSphinx(-side)
+        ram.position.set(side * 4.3, 0, -1.5 - r() * 8)
+        g.add(ram)
+      }
+      if (r() > 0.75) {
+        const ob = makeObelisk()
+        ob.position.set(side * 5.8, 0, -3 - r() * 6)
+        g.add(ob)
+      }
+    } else if (biome.props === 'avenue') {
+      // The full avenue: a sphinx every 4m, both sides, plus colossi.
+      for (let i = 0; i < 3; i++) {
+        const ram = makeRamSphinx(-side)
+        ram.position.set(side * 4.2, 0, -i * 4 - 1.4)
+        g.add(ram)
+      }
+      if (r() > 0.55) {
+        const ph = makePharaoh(seed * 9 + side)
+        ph.position.set(side * 6.6, 0, -3 - r() * 6)
+        g.add(ph)
+      }
     } else {
       // Stones and the odd fallen log, always off the running line.
       for (let i = 0; i < 3; i++) {
@@ -651,8 +973,16 @@ export function makeTrackSegment(seed = 1, biome: Biome = BIOMES[1]): THREE.Grou
       }
     }
 
-    // Jungle, where there is any
-    if (biome.trees) {
+    // Palms stand alone in open sand; the jungle comes in pairs with bushes.
+    if (biome.trees === 'palm') {
+      for (let i = 0; i < 2; i++) {
+        if (r() > 0.55) continue
+        const palm = makePalm(seed * 11 + i * 3 + side)
+        palm.position.set(side * (5.2 + r() * 2.6), 0, -r() * SEGMENT_LEN)
+        g.add(palm)
+      }
+    }
+    if (biome.trees === 'jungle') {
       for (let i = 0; i < 2; i++) {
         const z = -r() * SEGMENT_LEN
         const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9 + r() * 0.6, 0), mat(r() > 0.5 ? PAL.leaf : PAL.leafDeep))
@@ -683,7 +1013,82 @@ export function makeTrackSegment(seed = 1, biome: Biome = BIOMES[1]): THREE.Grou
  * and the lower teeth sit in the threshold outside the road, so nothing ever
  * rises into a running lane.
  */
+/** A seated jackal — Anubis on his shrine, flanking the pylon. */
+function makeJackal(c: Biome['gate'], flip: number): THREE.Group {
+  const g = new THREE.Group()
+  g.add(box(2.0, 0.5, 2.2, c.jaw, 0, 0.25, 0))
+  g.add(box(1.5, 2.1, 1.1, PAL.obsidian, 0, 1.55, -0.2))
+  g.add(box(0.7, 0.5, 1.9, PAL.obsidian, 0, 0.75, 0.7))
+  const head = new THREE.Group()
+  head.position.set(0, 3.0, 0)
+  g.add(head)
+  head.add(box(1.0, 0.9, 1.0, PAL.obsidian))
+  head.add(box(0.6, 0.45, 1.1, PAL.obsidian, 0, -0.1, 0.8))
+  head.add(box(0.26, 0.2, 0.12, c.pupil, 0.24 * flip, 0.18, 0.5, { emissive: c.pupil, emissiveIntensity: c.pupilGlow }))
+  head.add(box(0.26, 0.2, 0.12, c.pupil, -0.24 * flip, 0.18, 0.5, { emissive: c.pupil, emissiveIntensity: c.pupilGlow }))
+  for (const side of [-1, 1]) {
+    const ear = box(0.3, 1.0, 0.24, PAL.obsidian, side * 0.34, 0.85, -0.1)
+    ear.rotation.z = side * 0.12
+    head.add(ear)
+  }
+  head.add(box(1.2, 0.22, 1.1, PAL.egyptGold, 0, 0.3, -0.05))
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
+/**
+ * Egypt's gate: a pylon — two battered towers with the road between them —
+ * flanked by colossal seated jackals, under a winged sun disc. It transposes
+ * the Mayan rule rather than repeating it: the gate is still the thing hunting
+ * you, made enormous.
+ */
+function makePylonGate(c: Biome['gate']): THREE.Group {
+  const g = new THREE.Group()
+  const H = c.height
+  const OPEN = 6.4
+  const TOWER = 3.4
+  for (const side of [-1, 1]) {
+    const x = side * (OPEN / 2 + TOWER / 2)
+    // Battered face: a squat pyramid frustum reads as the slope.
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(TOWER * 0.42, TOWER * 0.6, H, 4), mat(c.face))
+    tower.position.set(x, H / 2, 0)
+    tower.rotation.y = Math.PI / 4
+    tower.scale.z = 0.7
+    g.add(tower)
+    g.add(box(TOWER + 0.5, 0.7, 2.6, c.brow, x, H - 0.35, 0))
+    // Flagstaff niches
+    for (let i = 0; i < 3; i++) {
+      g.add(box(0.36, H * 0.5, 0.3, PAL.lapis, x + (i - 1) * 0.9, H * 0.45, 1.05))
+    }
+    const jackal = makeJackal(c, side)
+    jackal.position.set(side * (OPEN / 2 - 0.9), 0, 2.6)
+    jackal.rotation.y = side * 0.18
+    g.add(jackal)
+  }
+  // Lintel and the winged disc
+  g.add(box(OPEN + TOWER * 2 + 1, 1.2, 2.8, c.face, 0, H - 0.6, 0))
+  g.add(box(OPEN + TOWER * 2 + 1.6, 0.5, 3.2, c.brow, 0, H + 0.3, 0))
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.4, 12), mat(PAL.egyptGold, { emissive: PAL.egyptGold, emissiveIntensity: 0.4 }))
+  disc.rotation.x = Math.PI / 2
+  disc.position.set(0, H - 1.4, 1.5)
+  g.add(disc)
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 4; i++) {
+      const feather = box(1.5 - i * 0.2, 0.3, 0.3, i % 2 ? PAL.lapis : PAL.egyptGold, side * (1.4 + i * 1.2), H - 1.4 + i * 0.16, 1.5)
+      feather.rotation.z = side * -0.1 * i
+      g.add(feather)
+    }
+  }
+  g.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.castShadow = true
+  })
+  return g
+}
+
 export function makeGate(biome: Biome): THREE.Group {
+  if (biome.gate.style === 'pylon') return makePylonGate(biome.gate)
   const g = new THREE.Group()
   const c = biome.gate
   const H = c.height
@@ -767,16 +1172,16 @@ export function makeGate(biome: Biome): THREE.Group {
  * A gradient sky dome. One unlit sphere, no fog, one draw call — and it is
  * the difference between "a scene" and "a void above a road".
  */
-export function makeSky(): THREE.Mesh {
+export function makeSky(stops: readonly string[] = ['#3f7f8e', '#82aea2', '#d6d9b4', '#b9bd98']): THREE.Mesh {
   const c = document.createElement('canvas')
   c.width = 4
   c.height = 256
   const ctx = c.getContext('2d')!
   const grd = ctx.createLinearGradient(0, 0, 0, 256)
-  grd.addColorStop(0, '#3f7f8e')
-  grd.addColorStop(0.42, '#82aea2')
-  grd.addColorStop(0.72, '#d6d9b4')
-  grd.addColorStop(1, '#b9bd98')
+  grd.addColorStop(0, stops[0])
+  grd.addColorStop(0.42, stops[1])
+  grd.addColorStop(0.72, stops[2])
+  grd.addColorStop(1, stops[3])
   ctx.fillStyle = grd
   ctx.fillRect(0, 0, 4, 256)
   const tex = new THREE.CanvasTexture(c)

@@ -12,7 +12,7 @@ export default function App() {
   const controls = useBoardControls({ onLeft: moveLeft, onRight: moveRight })
 
   return (
-    <div className="app">
+    <div className="app" data-world={state.world}>
       <header className="topbar">
         <h1 className="wordmark">
           Professor <span>WhipDash</span>
