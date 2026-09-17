@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createWorld, levelProgress, moveLane, score, step, TUNING, whip, type World } from './physics'
-import { biomeForLevel } from './palette'
+import { biomeForLevel, worldForLevel } from './palette'
 import type { GamePhase, GameState } from './types'
 
 const BEST_KEY = 'whipdash.best'
@@ -25,6 +25,8 @@ function initialState(best: number): GameState {
     hp: 100,
     multiplier: 1,
     level: 1,
+    world: worldForLevel(1).name,
+    zone: biomeForLevel(1).name,
     levelProgress: 0,
     toNextLevel: TUNING.levelDistance,
     grinding: false,
@@ -102,7 +104,8 @@ export function useGameEngine() {
         if (w.fx.idol) pushToast(`IDOL +${25 * w.multiplier}`, 'gold')
         else if (w.fx.coin && w.multiplier > 1) pushToast(`×${w.multiplier} DANGER`, 'hazard')
         if (w.fx.hit) pushToast('OW', 'hazard')
-        if (w.fx.levelUp) pushToast(`LV ${w.level} · ${biomeForLevel(w.level).name.toUpperCase()}`, 'jade')
+        if (w.fx.levelUp) pushToast(biomeForLevel(w.level).name.toUpperCase(), 'jade')
+        if (w.fx.heart) pushToast('+1 LIFE', 'jade')
 
         if (w.fx.hit || w.fx.grind) navigator.vibrate?.(w.fx.hit ? [30, 40, 30] : 12)
 
@@ -117,6 +120,8 @@ export function useGameEngine() {
             hp: w.hp,
             multiplier: w.multiplier,
             level: w.level,
+            world: worldForLevel(w.level).name,
+            zone: biomeForLevel(w.level).name,
             levelProgress: levelProgress(w),
             toNextLevel: Math.max(0, TUNING.levelDistance - (w.dist % TUNING.levelDistance)),
             grinding: w.grinding,

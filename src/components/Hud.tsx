@@ -8,23 +8,14 @@ interface HudProps {
 }
 
 /**
- * Everything the player reads mid-run, in priority order down the screen:
- * how much life is left, how close the next level is, then the counters.
- * Threat itself is read off the causeway now — the overhead camera keeps
- * every lane and the blocks holding them in frame.
+ * What is left on the glass. Health moved onto the Professor's back — the
+ * overhead camera never looks away from it — so the top of the screen carries
+ * only the level meter and the counters.
  */
 export function Hud({ state, toast }: HudProps) {
   return (
     <div className="hud" aria-hidden="true">
       <div className="hud__top">
-        <div className={`health${state.hp <= 34 ? ' health--low' : ''}`}>
-          <i style={{ width: `${Math.max(0, Math.min(100, state.hp))}%` }} />
-          {/* Quarter marks, so hits stay countable without segmenting the bar. */}
-          <u style={{ left: '25%' }} />
-          <u style={{ left: '50%' }} />
-          <u style={{ left: '75%' }} />
-        </div>
-
         <div className="level">
           <div className="level__bar">
             <i style={{ width: `${Math.round(state.levelProgress * 100)}%` }} />
@@ -67,7 +58,12 @@ export function Hud({ state, toast }: HudProps) {
         )}
       </AnimatePresence>
 
-      <div className="grit" style={{ opacity: state.grinding ? 0.75 : state.multiplier > 1 ? 0.3 : 0 }} />
+      {/* With no bar to watch, the frame itself has to carry low health. */}
+      <div
+        className="grit"
+        style={{ opacity: state.hp <= 34 ? 0.85 : state.grinding ? 0.7 : state.multiplier > 1 ? 0.3 : 0 }}
+        data-critical={state.hp <= 34 ? 'true' : undefined}
+      />
     </div>
   )
 }

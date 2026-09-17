@@ -45,6 +45,21 @@ export const PAL = {
   bugShell: 0x9a6bf0,
   eye: 0xf4e9d0,
 
+  // Egypt
+  sandLight: 0xdfc389,
+  sandDark: 0xcbae76,
+  sandWorn: 0xb89f6e,
+  limestone: 0xe6dcc0,
+  limestoneDark: 0xd6c9a6,
+  graniteRed: 0xb07a5e,
+  lapis: 0x2b5f9e,
+  faience: 0x3fa7b8,
+  egyptGold: 0xf0c24a,
+  palmLeaf: 0x4f8c4a,
+  palmLeafDeep: 0x3f7a3d,
+  palmTrunk: 0x8a6b45,
+  nemesFace: 0xe6cf9d,
+
   // Signal
   gold: 0xf2c14e,
   goldDeep: 0xc08a22,
@@ -62,141 +77,226 @@ export const SKY = {
 /* ------------------------------------------------------------------ zones */
 
 /**
- * Everything that changes between zones. The theme loops — zone index is
- * `(level - 1) % 3` — so difficulty has to ramp off the level, never off the
- * zone, or the game would get easier every time the trail came back around.
+ * Everything that changes between zones. Difficulty never reads from here —
+ * it ramps off the level — because the themes loop and a zone coming back
+ * around must not walk the challenge back down.
  */
 export interface Biome {
   name: string
-  /** Alternating road tones. */
   surfaceLight: number
   surfaceDark: number
-  /** Lane lines: carved groove, cart rut or obsidian inlay. */
   divider: number
   dividerHighlight: number
-  /** The 2.86m cadence marker that carries the speed read. */
   marker: number
   markerInlay: number
-  /** Kerb / verge / wall. */
   edge: number
   edgeTop: number
-  /** Ground either side of the road. */
   ground: number
-  /** Heel dust. */
   dust: number
-  trees: boolean
-  /** Roadside dressing. */
-  props: 'scatter' | 'stelae' | 'statues'
-  edging: 'verge' | 'balustrade' | 'wall'
-  /** Gate dressing — the idol you run into. */
+  trees: 'jungle' | 'palm' | 'none'
+  props: 'scatter' | 'stelae' | 'statues' | 'desert' | 'sphinxes' | 'avenue'
+  edging: 'verge' | 'balustrade' | 'wall' | 'berm' | 'relief' | 'plinths'
+  /** Pickup dressing for this world. */
+  heart: number
+  /**
+   * How the skyline sits. `near` is the lateral offset; `z`, when given, pins
+   * the prop at a fixed distance up the track instead of letting it recycle
+   * past — which is what a destination should do. Portrait's horizontal field
+   * is about 21°, so anything far off-axis is simply never in frame.
+   */
+  skyline: { kind: 'stepped' | 'smooth'; near: number; scale: number; z?: number }
   gate: {
     face: number
     brow: number
     jaw: number
     fang: number
     eye: number
-    /** Eye sockets burn in the city. */
     pupil: number
     pupilGlow: number
     crest: [number, number] | null
     vines: boolean
-    /** Only the city maw has a throat. */
     tunnel: boolean
     height: number
+    /** Egypt's gate is a pylon flanked by jackals, not a single mask. */
+    style: 'mask' | 'pylon'
   }
 }
 
-export const BIOMES: Biome[] = [
+/** The art theme for a run of three zones — not the simulation's World. */
+export interface WorldTheme {
+  name: string
+  zones: Biome[]
+  /** Sky dome stops, top to horizon. */
+  sky: [string, string, string, string]
+  fog: number
+  fogDensity: number
+  /** Chrome accent for the topbar lintel. */
+  chrome: { stone: string; band: string; ink: string }
+}
+
+const MAYA_GATE = {
+  eye: 0x241f2b,
+  pupil: 0xf2c14e,
+  pupilGlow: 0.6,
+  vines: false,
+  tunnel: false,
+  style: 'mask' as const,
+}
+
+const EGYPT_GATE = {
+  eye: 0x241f2b,
+  pupil: 0xf0c24a,
+  pupilGlow: 0.7,
+  crest: null,
+  vines: false,
+  tunnel: false,
+  style: 'pylon' as const,
+}
+
+export const WORLDS: WorldTheme[] = [
   {
-    name: 'Jungle trail',
-    surfaceLight: 0x9c7b52,
-    surfaceDark: 0x8a6a45,
-    divider: 0x5f4a2e,
-    dividerHighlight: 0xa98a5f,
-    marker: 0x6b4a2c,
-    markerInlay: 0x8c6238,
-    edge: 0x6d5636,
-    edgeTop: 0x7b6440,
-    ground: 0x3e8c57,
-    dust: 0xb5946a,
-    trees: true,
-    props: 'scatter',
-    edging: 'verge',
-    gate: {
-      face: 0x6b5a3e,
-      brow: 0x7b5533,
-      jaw: 0x5b4b33,
-      fang: 0xcfc7ad,
-      eye: 0x241f2b,
-      pupil: 0xf2c14e,
-      pupilGlow: 0.5,
-      crest: null,
-      vines: true,
-      tunnel: false,
-      height: 5.2,
-    },
+    name: 'Maya',
+    sky: ['#3f7f8e', '#82aea2', '#d6d9b4', '#b9bd98'],
+    fog: 0xadb894,
+    fogDensity: 0.011,
+    chrome: { stone: '#d2c3a3', band: '#b5432e', ink: '#2b2118' },
+    zones: [
+      {
+        name: 'Jungle trail',
+        surfaceLight: 0x9c7b52,
+        surfaceDark: 0x8a6a45,
+        divider: 0x5f4a2e,
+        dividerHighlight: 0xa98a5f,
+        marker: 0x6b4a2c,
+        markerInlay: 0x8c6238,
+        edge: 0x6d5636,
+        edgeTop: 0x7b6440,
+        ground: 0x3e8c57,
+        dust: 0xb5946a,
+        trees: 'jungle',
+        props: 'scatter',
+        edging: 'verge',
+        heart: 0x2fa98c,
+        skyline: { kind: 'stepped', near: 30, scale: 1 },
+        gate: { ...MAYA_GATE, face: 0x6b5a3e, brow: 0x7b5533, jaw: 0x5b4b33, fang: 0xcfc7ad, crest: null, vines: true, height: 5.2 },
+      },
+      {
+        name: 'The sacbé',
+        surfaceLight: 0xe7dcc4,
+        surfaceDark: 0xd2c3a3,
+        divider: 0x9c8c6e,
+        dividerHighlight: 0xb5a687,
+        marker: 0xb5432e,
+        markerInlay: 0x2fa98c,
+        edge: 0xc0ae8c,
+        edgeTop: 0xd2c3a3,
+        ground: 0x3e8c57,
+        dust: 0xd8cdb0,
+        trees: 'jungle',
+        props: 'stelae',
+        edging: 'balustrade',
+        heart: 0x2fa98c,
+        skyline: { kind: 'stepped', near: 30, scale: 1 },
+        gate: { ...MAYA_GATE, face: 0xd2c3a3, brow: 0xb5432e, jaw: 0xc0ae8c, fang: 0xefe6d2, crest: [0x2fa98c, 0x3fbfd4], height: 6 },
+      },
+      {
+        name: 'The city',
+        surfaceLight: 0xe2dcbf,
+        surfaceDark: 0xd3cdb0,
+        divider: 0x3a3444,
+        dividerHighlight: 0x565064,
+        marker: 0x9a937c,
+        markerInlay: 0xb5432e,
+        edge: 0x8b856d,
+        edgeTop: 0x9d977e,
+        ground: 0xa9a48b,
+        dust: 0xbdb7a2,
+        trees: 'none',
+        props: 'statues',
+        edging: 'wall',
+        heart: 0x2fa98c,
+        skyline: { kind: 'stepped', near: 19, scale: 1.5 },
+        gate: { ...MAYA_GATE, face: 0x9d977e, brow: 0xb5432e, jaw: 0x8b856d, fang: 0xc9c3a8, crest: null, pupil: 0xffa83c, pupilGlow: 1.4, tunnel: true, height: 7 },
+      },
+    ],
   },
   {
-    name: 'The sacbé',
-    surfaceLight: 0xe7dcc4,
-    surfaceDark: 0xd2c3a3,
-    divider: 0x9c8c6e,
-    dividerHighlight: 0xb5a687,
-    marker: 0xb5432e,
-    markerInlay: 0x2fa98c,
-    edge: 0xc0ae8c,
-    edgeTop: 0xd2c3a3,
-    ground: 0x3e8c57,
-    dust: 0xd8cdb0,
-    trees: true,
-    props: 'stelae',
-    edging: 'balustrade',
-    gate: {
-      face: 0xd2c3a3,
-      brow: 0xb5432e,
-      jaw: 0xc0ae8c,
-      fang: 0xefe6d2,
-      eye: 0x241f2b,
-      pupil: 0xf2c14e,
-      pupilGlow: 0.6,
-      crest: [0x2fa98c, 0x3fbfd4],
-      vines: false,
-      tunnel: false,
-      height: 6,
-    },
-  },
-  {
-    name: 'The city',
-    surfaceLight: 0xe2dcbf,
-    surfaceDark: 0xd3cdb0,
-    divider: 0x3a3444,
-    dividerHighlight: 0x565064,
-    marker: 0x9a937c,
-    markerInlay: 0xb5432e,
-    edge: 0x8b856d,
-    edgeTop: 0x9d977e,
-    ground: 0xa9a48b,
-    dust: 0xbdb7a2,
-    trees: false,
-    props: 'statues',
-    edging: 'wall',
-    gate: {
-      face: 0x9d977e,
-      brow: 0xb5432e,
-      jaw: 0x8b856d,
-      fang: 0xc9c3a8,
-      eye: 0x241f2b,
-      pupil: 0xffa83c,
-      pupilGlow: 1.4,
-      crest: null,
-      vines: false,
-      tunnel: true,
-      height: 7,
-    },
+    name: 'Egypt',
+    sky: ['#2f6fa8', '#8fb9c9', '#e6d6a8', '#f0dfae'],
+    fog: 0xd8c79a,
+    fogDensity: 0.0072,
+    chrome: { stone: '#dfc389', band: '#2b5f9e', ink: '#241c12' },
+    zones: [
+      {
+        name: 'The deep desert',
+        surfaceLight: 0xdfc389,
+        surfaceDark: 0xcbae76,
+        divider: 0xa8874f,
+        dividerHighlight: 0xe3cb97,
+        marker: 0xc2a878,
+        markerInlay: 0xb89f6e,
+        edge: 0xdcc48d,
+        edgeTop: 0xe3cb97,
+        ground: 0xd4b87f,
+        dust: 0xe6d3a4,
+        trees: 'palm',
+        props: 'desert',
+        edging: 'berm',
+        heart: 0x3fa7b8,
+        // Far out and small — the whole point of the world's arc.
+        skyline: { kind: 'smooth', near: 20, scale: 0.9, z: -175 },
+        gate: { ...EGYPT_GATE, face: 0xdcc48d, brow: 0xb07a5e, jaw: 0xc2a878, fang: 0xe6cf9d, height: 5.6 },
+      },
+      {
+        name: 'The causeway',
+        surfaceLight: 0xe6dcc0,
+        surfaceDark: 0xd6c9a6,
+        divider: 0xa9997a,
+        dividerHighlight: 0xc4b795,
+        marker: 0xb07a5e,
+        markerInlay: 0x2b5f9e,
+        edge: 0xc8b68f,
+        edgeTop: 0xd6c9a6,
+        ground: 0xcdb079,
+        dust: 0xe0d2ab,
+        trees: 'palm',
+        props: 'sphinxes',
+        edging: 'relief',
+        heart: 0x3fa7b8,
+        skyline: { kind: 'smooth', near: 24, scale: 1.8, z: -135 },
+        gate: { ...EGYPT_GATE, face: 0xe6dcc0, brow: 0xb07a5e, jaw: 0xd6c9a6, fang: 0xefe6d2, height: 6.4 },
+      },
+      {
+        name: 'The temple city',
+        surfaceLight: 0xd8ccb2,
+        surfaceDark: 0xc9bda4,
+        divider: 0x2b5f9e,
+        dividerHighlight: 0xf0c24a,
+        marker: 0xa7987c,
+        markerInlay: 0xb07a5e,
+        edge: 0xb3a488,
+        edgeTop: 0xc3b393,
+        ground: 0xbdae94,
+        dust: 0xcabb9e,
+        trees: 'none',
+        props: 'avenue',
+        edging: 'plinths',
+        heart: 0x3fa7b8,
+        skyline: { kind: 'smooth', near: 28, scale: 2.8, z: -100 },
+        gate: { ...EGYPT_GATE, face: 0xd9c79c, brow: 0xb07a5e, jaw: 0xc3b393, fang: 0xe6cf9d, pupilGlow: 1.3, height: 7.4 },
+      },
+    ],
   },
 ]
 
-/** The theme loops every three levels. */
+const ZONES_PER_WORLD = 3
+
+/** Worlds alternate every three levels; the zone cycles inside each. */
+export function worldForLevel(level: number): WorldTheme {
+  const i = Math.floor((Math.max(1, level) - 1) / ZONES_PER_WORLD) % WORLDS.length
+  return WORLDS[i]
+}
+
 export function biomeForLevel(level: number): Biome {
-  return BIOMES[(Math.max(1, level) - 1) % BIOMES.length]
+  return worldForLevel(level).zones[(Math.max(1, level) - 1) % ZONES_PER_WORLD]
 }
